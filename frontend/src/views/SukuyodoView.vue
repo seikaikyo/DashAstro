@@ -289,6 +289,7 @@ const showFormula = ref(false)
 const compatFinder = ref<CompatibilityFinderResult | null>(null)
 const finderLoading = ref(false)
 const selectedMansion = ref<CompatibleMansion | null>(null)
+const expandedLunarDates = ref<number[]>([])
 
 // 運勢查詢
 const dailyFortune = ref<DailyFortune | null>(null)
@@ -577,6 +578,22 @@ const formatDate = (dateStr: string) => {
   const d = new Date(dateStr)
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
+
+interface LunarDate {
+  lunar_month: number
+  lunar_day: number
+  display: string
+  solar_dates?: { lunar_year: number; solar_date: string; display: string }[]
+}
+
+const toggleLunarDate = (ld: LunarDate) => {
+  const idx = expandedLunarDates.value.indexOf(ld.lunar_month)
+  if (idx >= 0) {
+    expandedLunarDates.value.splice(idx, 1)
+  } else {
+    expandedLunarDates.value.push(ld.lunar_month)
+  }
+}
 </script>
 
 <template>
@@ -796,13 +813,31 @@ const formatDate = (dateStr: string) => {
                 <!-- 農曆生日對照 -->
                 <div v-if="selectedMansion.lunar_dates?.length" class="lunar-dates-section">
                   <h5>對應農曆生日</h5>
-                  <p class="lunar-dates-hint">找這些日期生的人就對了</p>
-                  <div class="lunar-dates-grid">
-                    <span
+                  <p class="lunar-dates-hint">找這些日期生的人就對了（點擊查看西曆對照）</p>
+                  <div class="lunar-dates-list">
+                    <div
                       v-for="ld in selectedMansion.lunar_dates"
                       :key="ld.lunar_month"
-                      class="lunar-date-chip"
-                    >{{ ld.display }}</span>
+                      class="lunar-date-item"
+                    >
+                      <button
+                        class="lunar-date-header"
+                        @click="toggleLunarDate(ld)"
+                      >
+                        <span class="lunar-date-text">{{ ld.display }}</span>
+                        <sl-icon :name="expandedLunarDates.includes(ld.lunar_month) ? 'chevron-up' : 'chevron-down'"></sl-icon>
+                      </button>
+                      <div
+                        v-if="expandedLunarDates.includes(ld.lunar_month) && ld.solar_dates?.length"
+                        class="solar-dates-grid"
+                      >
+                        <span
+                          v-for="sd in ld.solar_dates"
+                          :key="sd.lunar_year"
+                          class="solar-date-chip"
+                        >{{ sd.display }}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2394,6 +2429,61 @@ ruby rp {
   color: var(--text-muted);
   font-size: 0.8rem;
   margin-bottom: var(--space-3);
+}
+
+.lunar-dates-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.lunar-date-item {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.lunar-date-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: var(--cosmos-night);
+  border: none;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: background 0.2s;
+}
+
+.lunar-date-header:hover {
+  background: var(--cosmos-twilight);
+}
+
+.lunar-date-text {
+  font-weight: 500;
+}
+
+.lunar-date-header sl-icon {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.solar-dates-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: var(--cosmos-twilight);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.solar-date-chip {
+  padding: var(--space-1) var(--space-2);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
 }
 
 .lunar-dates-grid {
