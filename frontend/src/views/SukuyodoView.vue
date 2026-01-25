@@ -297,6 +297,35 @@ const monthlyFortune = ref<MonthlyFortune | null>(null)
 const yearlyFortune = ref<YearlyFortune | null>(null)
 const fortuneLoading = ref(false)
 
+// 求職離職指引
+interface CareerCategory {
+  name: string
+  jobs: string[]
+}
+interface LuckyDay {
+  date: string
+  weekday: string
+  score: number
+  reason: string
+}
+interface CareerGuidance {
+  your_mansion: {
+    name_jp: string
+    reading: string
+    element: string
+  }
+  suitable_careers: CareerCategory[]
+  career_traits: string
+  lucky_days: {
+    job_seeking: LuckyDay[]
+    resignation: LuckyDay[]
+  }
+  avoid_days: LuckyDay[]
+  general_advice: string
+}
+const careerGuidance = ref<CareerGuidance | null>(null)
+const careerLoading = ref(false)
+
 // 元素顏色
 const elementColors: Record<string, string> = {
   '木': '#4A9B5A',
@@ -330,13 +359,13 @@ const lookupMansion = async () => {
   lookupLoading.value = true
   lookupError.value = ''
   mansion.value = null
-  showDetails.value = false
   compatFinder.value = null
   selectedMansion.value = null
   dailyFortune.value = null
   weeklyFortune.value = null
   monthlyFortune.value = null
   yearlyFortune.value = null
+  careerGuidance.value = null
 
   try {
     const res = await fetch(`${apiUrl}/api/sukuyodo/mansion/${birthDate.value}`)
@@ -472,8 +501,27 @@ const fetchAllFortunes = async () => {
     fetchDailyFortune(),
     fetchWeeklyFortune(),
     fetchMonthlyFortune(),
-    fetchYearlyFortune()
+    fetchYearlyFortune(),
+    fetchCareerGuidance()
   ])
+}
+
+const fetchCareerGuidance = async () => {
+  if (!birthDate.value) return
+  careerLoading.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/sukuyodo/career-guidance/${birthDate.value}`)
+    if (res.ok) {
+      const data = await res.json()
+      if (data.success) {
+        careerGuidance.value = data.data
+      }
+    }
+  } catch (e) {
+    console.error('Failed to fetch career guidance')
+  } finally {
+    careerLoading.value = false
+  }
 }
 
 const getFortuneLevel = (score: number) => {
@@ -490,7 +538,6 @@ const calculateCompatibility = async () => {
   compatLoading.value = true
   compatError.value = ''
   compatibility.value = null
-  showCompatDetails.value = false
 
   try {
     const res = await fetch(`${apiUrl}/api/sukuyodo/compatibility`, {
@@ -524,6 +571,11 @@ const getScoreLevel = (score: number) => {
   if (score >= 75) return { text: '相當不錯', class: 'good' }
   if (score >= 60) return { text: '需要磨合', class: 'fair' }
   return { text: '多加小心', class: 'warning' }
+}
+
+const formatDate = (dateStr: string) => {
+  const d = new Date(dateStr)
+  return `${d.getMonth() + 1}/${d.getDate()}`
 }
 </script>
 
@@ -1184,6 +1236,102 @@ const getScoreLevel = (score: number) => {
                 </div>
               </div>
             </div>
+          </div>
+        </CollapsibleCard>
+
+        <!-- 求職離職指引卡片 -->
+        <CollapsibleCard
+          title="求職離職指引"
+          subtitle="適合職業與吉日查詢"
+          icon="briefcase"
+          :badge="careerGuidance ? '已載入' : undefined"
+          :default-open="false"
+        >
+          <div class="career-content">
+            <template v-if="careerLoading">
+              <div class="loading-state">
+                <sl-spinner></sl-spinner>
+                <span>載入中...</span>
+              </div>
+            </template>
+
+            <template v-else-if="careerGuidance">
+              <!-- 適合職業類型 -->
+              <div class="career-section">
+                <h4>適合的職業類型</h4>
+                <p class="career-traits">{{ careerGuidance.career_traits }}</p>
+                <div class="career-categories">
+                  <div
+                    v-for="category in careerGuidance.suitable_careers"
+                    :key="category.name"
+                    class="career-category"
+                  >
+                    <span class="category-name">{{ category.name }}</span>
+                    <div class="job-list">
+                      <span v-for="job in category.jobs" :key="job" class="job-tag">{{ job }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 職涯建議 -->
+              <div class="career-advice">
+                <p>{{ careerGuidance.general_advice }}</p>
+              </div>
+
+              <!-- 求職吉日 -->
+              <div class="lucky-days-section">
+                <h4>近 30 天求職吉日</h4>
+                <div v-if="careerGuidance.lucky_days.job_seeking.length" class="lucky-days-list">
+                  <div
+                    v-for="day in careerGuidance.lucky_days.job_seeking"
+                    :key="day.date"
+                    class="lucky-day-item seeking"
+                  >
+                    <span class="day-date">{{ formatDate(day.date) }} ({{ day.weekday }})</span>
+                    <span class="day-score">{{ day.score }}分</span>
+                    <span class="day-reason">{{ day.reason }}</span>
+                  </div>
+                </div>
+                <p v-else class="no-data">暫無特別吉日</p>
+              </div>
+
+              <!-- 離職吉日 -->
+              <div class="lucky-days-section">
+                <h4>近 30 天離職吉日</h4>
+                <div v-if="careerGuidance.lucky_days.resignation.length" class="lucky-days-list">
+                  <div
+                    v-for="day in careerGuidance.lucky_days.resignation"
+                    :key="day.date"
+                    class="lucky-day-item resignation"
+                  >
+                    <span class="day-date">{{ formatDate(day.date) }} ({{ day.weekday }})</span>
+                    <span class="day-score">{{ day.score }}分</span>
+                    <span class="day-reason">{{ day.reason }}</span>
+                  </div>
+                </div>
+                <p v-else class="no-data">暫無適合日期</p>
+              </div>
+
+              <!-- 需避開的日子 -->
+              <div v-if="careerGuidance.avoid_days.length" class="avoid-days-section">
+                <h4>需避開的日子</h4>
+                <div class="avoid-days-list">
+                  <div
+                    v-for="day in careerGuidance.avoid_days"
+                    :key="day.date"
+                    class="avoid-day-item"
+                  >
+                    <span class="day-date">{{ formatDate(day.date) }} ({{ day.weekday }})</span>
+                    <span class="day-reason">{{ day.reason }}</span>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <template v-else>
+              <p class="no-data">請先查詢本命宿以取得求職離職指引</p>
+            </template>
           </div>
         </CollapsibleCard>
       </div>
@@ -2871,6 +3019,149 @@ ruby rp {
 
   .year-info {
     flex-wrap: wrap;
+  }
+}
+
+/* 求職離職指引 */
+.career-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.career-content .loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-6);
+  color: var(--text-muted);
+}
+
+.career-section h4,
+.lucky-days-section h4,
+.avoid-days-section h4 {
+  color: var(--stellar-gold);
+  font-size: 1rem;
+  margin-bottom: var(--space-3);
+}
+
+.career-traits {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin-bottom: var(--space-4);
+}
+
+.career-categories {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.career-category {
+  padding: var(--space-4);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-md);
+}
+
+.career-category .category-name {
+  display: block;
+  color: var(--text-primary);
+  font-weight: 500;
+  margin-bottom: var(--space-2);
+}
+
+.job-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.job-tag {
+  padding: var(--space-1) var(--space-2);
+  background: var(--cosmos-twilight);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.career-advice {
+  padding: var(--space-4);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--stellar-gold);
+}
+
+.career-advice p {
+  color: var(--text-secondary);
+  line-height: 1.7;
+  font-size: 0.9rem;
+}
+
+.lucky-days-list,
+.avoid-days-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.lucky-day-item,
+.avoid-day-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-md);
+}
+
+.lucky-day-item.seeking {
+  border-left: 3px solid #4A9B5A;
+}
+
+.lucky-day-item.resignation {
+  border-left: 3px solid var(--stellar-gold);
+}
+
+.avoid-day-item {
+  border-left: 3px solid #E85D4C;
+}
+
+.day-date {
+  font-weight: 500;
+  color: var(--text-primary);
+  min-width: 120px;
+}
+
+.day-score {
+  padding: var(--space-1) var(--space-2);
+  background: var(--cosmos-twilight);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--stellar-gold);
+}
+
+.day-reason {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.career-content .no-data {
+  color: var(--text-muted);
+  text-align: center;
+  padding: var(--space-4);
+}
+
+@media (max-width: 768px) {
+  .lucky-day-item,
+  .avoid-day-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .day-date {
+    min-width: auto;
   }
 }
 </style>
