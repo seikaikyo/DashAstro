@@ -5,6 +5,7 @@ from .astronomy import router as astronomy_router
 from .compatibility import router as compatibility_router
 from .stats import router as stats_router
 from .lucky_days import router as lucky_days_router
+from .sukuyodo import router as sukuyodo_router
 
 __all__ = [
     "health_router",
@@ -13,5 +14,6 @@ __all__ = [
     "astronomy_router",
     "compatibility_router",
     "stats_router",
-    "lucky_days_router"
+    "lucky_days_router",
+    "sukuyodo_router"
 ]

@@ -37,3 +37,5 @@ class Features:
     TAROT_INTERPRET = "tarot_interpret"        # AI 解讀
     COMPATIBILITY = "compatibility"            # 配對分析
     SKY_VIEW = "sky_view"                      # 今日天象
+    SUKUYODO_LOOKUP = "sukuyodo_lookup"        # 宿曜道本命宿查詢
+    SUKUYODO_COMPATIBILITY = "sukuyodo_compat" # 宿曜道相性診斷

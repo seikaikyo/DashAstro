@@ -42,6 +42,11 @@ const router = createRouter({
       path: '/stats',
       name: 'stats',
       component: () => import('../views/StatsView.vue')
+    },
+    {
+      path: '/sukuyodo',
+      name: 'sukuyodo',
+      component: () => import('../views/SukuyodoView.vue')
     }
   ]
 })
