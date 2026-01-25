@@ -196,6 +196,91 @@ function getScoreStars(score: number): string {
   const half = score % 1 >= 0.5 ? 1 : 0
   return '\u2605'.repeat(full) + (half ? '\u2606' : '') + '\u2606'.repeat(5 - full - half)
 }
+
+// 月相說明
+const moonPhaseExplanation = computed(() => {
+  if (!summary.value) return ''
+  const phase = summary.value.moon_phase.phase_name_zh
+  const illumination = summary.value.moon_phase.illumination
+
+  if (phase.includes('新月')) {
+    return '月亮與太陽同方向，能量收斂。適合內省、許願、開始新計畫。感情上是重新出發的好時機。'
+  } else if (phase.includes('上弦')) {
+    return '月亮漸盈，能量逐漸增強。適合執行計畫、積極行動。感情上可以主動出擊。'
+  } else if (phase.includes('滿月')) {
+    return '月亮最圓，情緒能量達到高峰。容易情緒波動，但也適合表達心意、收穫成果。'
+  } else if (phase.includes('下弦')) {
+    return '月亮漸虧，能量逐漸收束。適合反省、整理、放下。感情上可以釐清關係。'
+  }
+  return `月亮亮度 ${illumination}%，能量處於過渡期，觀察內心變化。`
+})
+
+// 逆行說明
+const retrogradeExplanation = computed(() => {
+  if (!summary.value) return ''
+  const retros = summary.value.retrograde_planets
+
+  if (retros.length === 0) {
+    return '沒有行星逆行，整體能量順暢，適合推進事務。'
+  }
+
+  const explanations: string[] = []
+  for (const p of retros) {
+    switch (p.planet) {
+      case 'mercury':
+        explanations.push('水星逆行：溝通、交通、電子設備容易出狀況。多確認訊息，簽約前仔細看條款。')
+        break
+      case 'venus':
+        explanations.push('金星逆行：舊情人可能出現，審視感情價值觀。不建議開始新戀情或大額消費。')
+        break
+      case 'mars':
+        explanations.push('火星逆行：行動力下降，容易衝動後悔。適合規劃而非立即行動。')
+        break
+      case 'jupiter':
+        explanations.push('木星逆行：向內探索成長，機會需要耐心等待。')
+        break
+      case 'saturn':
+        explanations.push('土星逆行：重新審視責任與限制，適合解決舊問題。')
+        break
+      default:
+        explanations.push(`${p.name_zh}逆行：該領域能量向內轉化。`)
+    }
+  }
+  return explanations.join('\n')
+})
+
+// 元素說明
+const elementExplanation = computed(() => {
+  if (!summary.value) return ''
+  const dominant = summary.value.dominant_element
+
+  const descriptions: Record<string, string> = {
+    fire: '火象能量主導：整體氛圍積極、熱情、有衝勁。火象星座（牡羊、獅子、射手）狀態活躍，其他星座也會感染到這股熱情。',
+    earth: '土象能量主導：整體氛圍務實、穩定、重視實際。土象星座（金牛、處女、魔羯）狀態舒適，適合處理實務工作。',
+    air: '風象能量主導：整體氛圍活潑、善於溝通、思維敏捷。風象星座（雙子、天秤、水瓶）狀態出色，社交互動順暢。',
+    water: '水象能量主導：整體氛圍敏感、直覺強、情感豐富。水象星座（巨蟹、天蠍、雙魚）狀態敏銳，容易感應他人情緒。'
+  }
+
+  return descriptions[dominant] || '能量均衡分布。'
+})
+
+// 行星說明
+const planetMeanings: Record<string, string> = {
+  sun: '太陽：代表自我、活力、生命力。太陽所在星座會影響整體的能量氛圍。',
+  moon: '月亮：代表情緒、直覺、內在需求。月亮所在星座影響當下的情緒狀態。',
+  mercury: '水星：代表溝通、思維、學習。水星所在星座影響表達方式與理解能力。',
+  venus: '金星：代表愛情、美感、價值觀。金星所在星座影響感情運與審美。',
+  mars: '火星：代表行動力、競爭、慾望。火星所在星座影響做事方式與動力。',
+  jupiter: '木星：代表幸運、擴張、智慧。木星所在星座帶來該領域的好運。',
+  saturn: '土星：代表責任、限制、成熟。土星所在星座需要面對的課題。',
+  uranus: '天王星：代表變革、創新、自由。天王星所在星座帶來突破。',
+  neptune: '海王星：代表夢想、靈感、迷幻。海王星所在星座帶來想像力。',
+  pluto: '冥王星：代表轉化、重生、深層力量。冥王星所在星座帶來深度變化。'
+}
+
+function getPlanetMeaning(planet: string): string {
+  return planetMeanings[planet] || ''
+}
 </script>
 
 <template>
@@ -295,6 +380,7 @@ function getScoreStars(score: number): string {
             <h3>月相</h3>
             <p class="highlight-value">{{ summary.moon_phase.phase_name_zh }}</p>
             <p class="highlight-sub">亮度 {{ summary.moon_phase.illumination }}%</p>
+            <p class="highlight-explanation">{{ moonPhaseExplanation }}</p>
           </div>
 
           <div class="highlight-card card">
@@ -306,6 +392,7 @@ function getScoreStars(score: number): string {
             <p v-if="summary.retrograde_count > 0" class="highlight-sub">
               {{ summary.retrograde_planets.map(p => p.name_zh).join('、') }}
             </p>
+            <p class="highlight-explanation">{{ retrogradeExplanation }}</p>
           </div>
 
           <div class="highlight-card card">
@@ -318,11 +405,15 @@ function getScoreStars(score: number): string {
             <h3>主導元素</h3>
             <p class="highlight-value">{{ summary.dominant_element_zh }}</p>
             <p class="highlight-sub">能量分布最高</p>
+            <p class="highlight-explanation">{{ elementExplanation }}</p>
           </div>
         </div>
 
         <section class="element-section card">
           <h2>元素能量分布</h2>
+          <p class="section-desc">
+            行星分布在 12 星座中，每個星座屬於四元素之一。元素分布反映當前宇宙能量的傾向。
+          </p>
           <div class="element-bars">
             <div
               v-for="(count, element) in summary.element_distribution"
@@ -352,24 +443,43 @@ function getScoreStars(score: number): string {
 
         <section class="planets-section">
           <h2>行星位置</h2>
+          <p class="section-desc">
+            點擊行星卡片查看該行星的意義。行星進入你的星座時，代表該領域能量增強。
+          </p>
           <div class="planets-grid">
-            <div
+            <sl-tooltip
               v-for="planet in summary.planet_positions"
               :key="planet.planet"
-              :class="[
-                'planet-card card',
-                {
-                  'my-sign': planet.sign_code === profile.zodiacCode,
-                  'partner-sign': selectedPartner && planet.sign_code === selectedPartner.zodiacCode
-                }
-              ]"
+              :content="getPlanetMeaning(planet.planet)"
+              hoist
             >
-              <div class="planet-name">{{ planet.name_zh }}</div>
-              <div class="planet-sign">{{ planet.sign_name }}</div>
-              <div class="planet-degree">{{ planet.degree.toFixed(1) }}°</div>
-              <div v-if="planet.sign_code === profile.zodiacCode" class="planet-tag my">我</div>
-              <div v-else-if="selectedPartner && planet.sign_code === selectedPartner.zodiacCode" class="planet-tag partner">TA</div>
-            </div>
+              <div
+                :class="[
+                  'planet-card card',
+                  {
+                    'my-sign': planet.sign_code === profile.zodiacCode,
+                    'partner-sign': selectedPartner && planet.sign_code === selectedPartner.zodiacCode
+                  }
+                ]"
+              >
+                <div class="planet-name">{{ planet.name_zh }}</div>
+                <div class="planet-sign">{{ planet.sign_name }}</div>
+                <div class="planet-degree">{{ planet.degree.toFixed(1) }}°</div>
+                <div v-if="planet.sign_code === profile.zodiacCode" class="planet-tag my">我</div>
+                <div v-else-if="selectedPartner && planet.sign_code === selectedPartner.zodiacCode" class="planet-tag partner">TA</div>
+              </div>
+            </sl-tooltip>
+          </div>
+
+          <!-- 行星與星座關係說明 -->
+          <div class="planets-guide">
+            <h3>行星如何影響你？</h3>
+            <ul class="guide-list">
+              <li><strong>標記「我」的行星</strong>：正經過你的星座，該行星代表的能量會特別強烈。例如金星經過，感情運提升；火星經過，行動力增強。</li>
+              <li><strong>標記「TA」的行星</strong>：正經過對方的星座，可以了解對方近期的狀態。</li>
+              <li><strong>太陽位置</strong>：決定當前是什麼「星座月」。太陽在你的星座時，是你的生日月，整體運勢最旺。</li>
+              <li><strong>月亮位置</strong>：影響每 2-3 天的情緒氛圍。月亮在你的星座時，情感敏銳度提高。</li>
+            </ul>
           </div>
         </section>
 
@@ -588,6 +698,23 @@ function getScoreStars(score: number): string {
   color: var(--text-muted);
 }
 
+.highlight-explanation {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  text-align: left;
+  white-space: pre-line;
+}
+
+.section-desc {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-bottom: var(--space-4);
+}
+
 /* 元素分布 */
 .element-section {
   margin-bottom: var(--space-8);
@@ -706,5 +833,39 @@ function getScoreStars(score: number): string {
   font-size: 0.75rem;
   color: var(--text-muted);
   line-height: 1.8;
+}
+
+/* 行星說明區 */
+.planets-guide {
+  margin-top: var(--space-6);
+  padding: var(--space-5);
+  background: var(--cosmos-twilight);
+  border-radius: var(--radius-md);
+}
+
+.planets-guide h3 {
+  font-size: 1rem;
+  color: var(--stellar-gold);
+  margin-bottom: var(--space-3);
+}
+
+.guide-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.guide-list li {
+  padding: var(--space-2) 0;
+  padding-left: var(--space-4);
+  border-left: 2px solid var(--border-gold);
+  margin-bottom: var(--space-2);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.guide-list li strong {
+  color: var(--stellar-gold);
 }
 </style>
