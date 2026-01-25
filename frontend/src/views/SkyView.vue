@@ -485,6 +485,7 @@ function getScoreStars(score: number): string {
   color: var(--text-primary);
   line-height: 1.7;
   margin-bottom: var(--space-4);
+  white-space: pre-line;
 }
 
 .sky-notes {

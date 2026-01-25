@@ -421,6 +421,7 @@ const myZodiacSymbol = computed(() => {
   color: var(--text-secondary);
   line-height: 1.6;
   margin-bottom: var(--space-2);
+  white-space: pre-line;
 }
 
 .compat-note {
