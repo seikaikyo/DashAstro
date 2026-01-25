@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from config import get_settings
 from database import init_db
-from routers import health_router, horoscope_router, tarot_router, astronomy_router, compatibility_router, stats_router, lucky_days_router, sukuyodo_router
+from routers import health_router, horoscope_router, tarot_router, astronomy_router, compatibility_router, stats_router, lucky_days_router, sukuyodo_router, cron_router
 
 settings = get_settings()
 
@@ -96,6 +96,7 @@ app.include_router(compatibility_router)
 app.include_router(stats_router)
 app.include_router(lucky_days_router)
 app.include_router(sukuyodo_router)
+app.include_router(cron_router)
 
 
 @app.get("/")
