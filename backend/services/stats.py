@@ -9,38 +9,40 @@ class StatsService:
     """使用統計服務"""
 
     def log_usage(self, session: Session, feature: str) -> None:
-        """記錄功能使用次數（不影響主要操作）"""
+        """記錄功能使用次數（使用獨立 session，不影響主要操作）"""
         try:
-            today = date.today()
+            # 使用獨立的 session 避免影響主要操作
+            from database import engine
+            if engine is None:
+                return
 
-            # 查找今日該功能的統計記錄
-            stats = session.exec(
-                select(UsageStats)
-                .where(UsageStats.feature == feature)
-                .where(UsageStats.stat_date == today)
-            ).first()
+            with Session(engine) as stats_session:
+                today = date.today()
 
-            if stats:
-                # 更新計數
-                stats.count += 1
-                stats.updated_at = datetime.utcnow()
-            else:
-                # 建立新記錄
-                stats = UsageStats(
-                    feature=feature,
-                    stat_date=today,
-                    count=1
-                )
-                session.add(stats)
+                # 查找今日該功能的統計記錄
+                stats = stats_session.exec(
+                    select(UsageStats)
+                    .where(UsageStats.feature == feature)
+                    .where(UsageStats.stat_date == today)
+                ).first()
 
-            session.commit()
+                if stats:
+                    # 更新計數
+                    stats.count += 1
+                    stats.updated_at = datetime.utcnow()
+                else:
+                    # 建立新記錄
+                    stats = UsageStats(
+                        feature=feature,
+                        stat_date=today,
+                        count=1
+                    )
+                    stats_session.add(stats)
+
+                stats_session.commit()
         except Exception as e:
             # 統計失敗不影響主要功能
             print(f"[Stats] 記錄失敗: {e}")
-            try:
-                session.rollback()
-            except:
-                pass
 
     def get_daily_stats(
         self,
