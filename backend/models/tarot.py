@@ -83,14 +83,25 @@ class TarotReadingRead(TarotReadingBase):
     created_at: datetime
 
 
+class CompatibilityContext(SQLModel):
+    """配對資訊"""
+    user_zodiac: str  # 用戶星座代碼
+    user_gender: Optional[str] = None
+    partner_zodiac: str  # 對象星座代碼
+    partner_gender: Optional[str] = None
+    partner_nickname: Optional[str] = None
+
+
 class DrawRequest(SQLModel):
     """抽牌請求"""
     spread_code: str = "single"
     question: Optional[str] = None
     session_id: Optional[str] = None
+    compatibility: Optional[CompatibilityContext] = None
 
 
 class InterpretRequest(SQLModel):
     """AI 解讀請求"""
     reading_id: UUID
     additional_context: Optional[str] = None
+    compatibility: Optional[CompatibilityContext] = None

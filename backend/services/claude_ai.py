@@ -24,7 +24,8 @@ class ClaudeAIService:
         self,
         cards: list[dict],
         question: Optional[str] = None,
-        spread_name: str = "單牌"
+        spread_name: str = "單牌",
+        compatibility: Optional[dict] = None
     ) -> str:
         """
         解讀塔羅牌陣
@@ -33,6 +34,7 @@ class ClaudeAIService:
             cards: 抽取的牌列表，每張包含 name_zh, position_name, is_reversed, meaning
             question: 用戶的問題
             spread_name: 牌陣名稱
+            compatibility: 配對資訊，包含 user_zodiac, partner_zodiac 等
         """
         if not self._is_available():
             return None
@@ -51,9 +53,30 @@ class ClaudeAIService:
 
         question_part = f"\n問題：「{question}」\n" if question else ""
 
+        # 配對資訊
+        compatibility_part = ""
+        if compatibility:
+            zodiac_names = {
+                "ARI": "牡羊座", "TAU": "金牛座", "GEM": "雙子座",
+                "CAN": "巨蟹座", "LEO": "獅子座", "VIR": "處女座",
+                "LIB": "天秤座", "SCO": "天蠍座", "SAG": "射手座",
+                "CAP": "摩羯座", "AQU": "水瓶座", "PIS": "雙魚座",
+            }
+            user_zodiac = zodiac_names.get(compatibility.get("user_zodiac", "").upper(), "")
+            partner_zodiac = zodiac_names.get(compatibility.get("partner_zodiac", "").upper(), "")
+            partner_name = compatibility.get("partner_nickname") or partner_zodiac
+
+            if user_zodiac and partner_zodiac:
+                compatibility_part = f"""
+配對背景：
+- 問卜者：{user_zodiac}
+- 關注對象：{partner_name}（{partner_zodiac}）
+請在解讀中加入針對這兩個星座互動的分析，並給予具體的相處建議。
+"""
+
         prompt = f"""你是一位專業的塔羅解讀師，風格溫暖但務實，提供有見地的指引。
 
-用戶使用「{spread_name}」牌陣進行占卜。{question_part}
+用戶使用「{spread_name}」牌陣進行占卜。{question_part}{compatibility_part}
 
 抽出的牌：
 {cards_text}
@@ -62,7 +85,8 @@ class ClaudeAIService:
 1. 首先概述整體牌面呈現的能量和主題
 2. 針對每個位置的牌給予簡短但有意義的解釋
 3. 如果有用戶問題，將解讀與問題連結
-4. 最後給予務實、可行動的建議
+4. 如果有配對資訊，分析雙方星座在這個議題上的互動特質
+5. 最後給予務實、可行動的建議
 
 語氣要求：
 - 使用繁體中文（台灣用語）

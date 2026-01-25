@@ -81,11 +81,16 @@ async function requestInterpretation() {
   interpretError.value = ''
 
   try {
+    // 從 sessionStorage 取得配對資訊
+    const compatData = sessionStorage.getItem(`tarot_compat_${reading.value.id}`)
+    const compatibility = compatData ? JSON.parse(compatData) : null
+
     const res = await fetch(`${apiUrl}/api/tarot/interpret`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        reading_id: reading.value.id
+        reading_id: reading.value.id,
+        compatibility: compatibility
       })
     })
 

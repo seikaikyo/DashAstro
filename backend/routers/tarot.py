@@ -8,7 +8,8 @@ from models.tarot import (
     TarotCard, TarotCardRead,
     TarotSpread, TarotSpreadRead,
     TarotReading, TarotReadingRead,
-    DrawRequest, DrawnCard, InterpretRequest
+    DrawRequest, DrawnCard, InterpretRequest,
+    CompatibilityContext
 )
 
 router = APIRouter(prefix="/api/tarot", tags=["Tarot"])
@@ -157,11 +158,23 @@ async def interpret_reading(
                 "meaning": card.reversed_meaning if is_reversed else card.upright_meaning
             })
 
+    # 準備配對資訊
+    compatibility_data = None
+    if request.compatibility:
+        compatibility_data = {
+            "user_zodiac": request.compatibility.user_zodiac,
+            "user_gender": request.compatibility.user_gender,
+            "partner_zodiac": request.compatibility.partner_zodiac,
+            "partner_gender": request.compatibility.partner_gender,
+            "partner_nickname": request.compatibility.partner_nickname
+        }
+
     # 呼叫 Claude AI 解讀
     interpretation = await claude_service.interpret_tarot_reading(
         cards=cards_for_ai,
         question=reading.question,
-        spread_name=spread_name
+        spread_name=spread_name,
+        compatibility=compatibility_data
     )
 
     if interpretation:
