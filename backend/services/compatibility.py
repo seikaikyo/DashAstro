@@ -127,7 +127,7 @@ class CompatibilityService:
             "aspect": aspect,
             "element_compatibility": element,
             "sky_influence": sky_influence,
-            "advice": self._generate_advice(aspect, element, sky_influence)
+            "advice": self._generate_advice(aspect, element, sky_influence, sign1, sign2)
         }
 
     def _get_sky_influence(self, dt: Optional[datetime] = None) -> dict:
@@ -175,20 +175,59 @@ class CompatibilityService:
                 "mercury_retrograde": False
             }
 
-    def _generate_advice(self, aspect: dict, element: dict, sky: dict) -> str:
+    # 星座特質描述
+    SIGN_TRAITS = {
+        "ARI": {"trait": "衝勁與熱情", "need": "需要對方跟上節奏"},
+        "TAU": {"trait": "穩定與忠誠", "need": "需要安全感與物質保障"},
+        "GEM": {"trait": "機智與變化", "need": "需要新鮮感與智性交流"},
+        "CAN": {"trait": "溫柔與照顧", "need": "需要情感上的回應與家庭感"},
+        "LEO": {"trait": "自信與慷慨", "need": "需要被欣賞與關注"},
+        "VIR": {"trait": "細膩與務實", "need": "需要對方理解其完美主義"},
+        "LIB": {"trait": "優雅與和諧", "need": "需要平等與美感的生活"},
+        "SCO": {"trait": "深情與專注", "need": "需要絕對的忠誠與信任"},
+        "SAG": {"trait": "樂觀與自由", "need": "需要空間與冒險精神"},
+        "CAP": {"trait": "穩重與責任", "need": "需要對方認真對待關係"},
+        "AQU": {"trait": "獨立與創新", "need": "需要精神上的連結與尊重"},
+        "PIS": {"trait": "浪漫與直覺", "need": "需要情感共鳴與包容"},
+    }
+
+    def _generate_advice(
+        self, aspect: dict, element: dict, sky: dict,
+        sign1: str = None, sign2: str = None
+    ) -> str:
         """生成配對建議"""
         advice_parts = []
 
+        # 取得星座特質
+        trait1 = self.SIGN_TRAITS.get(sign1, {})
+        trait2 = self.SIGN_TRAITS.get(sign2, {})
+        sign1_name = self.SIGN_NAMES.get(sign1, "")
+        sign2_name = self.SIGN_NAMES.get(sign2, "")
+
         # 根據相位給建議
         if aspect["harmony"] >= 4:
-            advice_parts.append("你們天生契合度高，自然相處即可。")
+            if trait1 and trait2:
+                advice_parts.append(
+                    f"{sign2_name}的{trait2.get('trait', '特質')}與你相當契合。"
+                )
+            else:
+                advice_parts.append("你們天生契合度高，自然相處即可。")
         elif aspect["harmony"] <= 2:
-            advice_parts.append("你們需要更多耐心與理解，但挑戰帶來成長。")
+            if trait2:
+                advice_parts.append(
+                    f"{sign2_name}{trait2.get('need', '需要耐心')}，這對你是個挑戰但也是成長機會。"
+                )
+            else:
+                advice_parts.append("你們需要更多耐心與理解，但挑戰帶來成長。")
         else:
             advice_parts.append("你們有互補的特質，可以從對方身上學習。")
 
         # 元素建議
         advice_parts.append(element["desc"] + "。")
+
+        # 具體相處建議
+        if trait2:
+            advice_parts.append(f"本週可以多關注對方{trait2.get('need', '的需求')}。")
 
         # 天象建議
         if sky.get("venus_retrograde"):
