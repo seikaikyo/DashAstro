@@ -6,11 +6,13 @@ export interface Partner {
   gender: 'male' | 'female' | 'other'
   zodiacCode: string
   isPrimary: boolean
+  birthDate?: string  // YYYY-MM-DD 格式，選填
 }
 
 export interface UserProfile {
   gender: 'male' | 'female' | 'other' | null
   zodiacCode: string | null
+  birthDate?: string  // YYYY-MM-DD 格式，選填
   partners: Partner[]
 }
 
@@ -72,6 +74,54 @@ export const GENDER_OPTIONS = [
   { value: 'other', label: '其他' }
 ]
 
+// 從生日推算星座
+export function getZodiacFromBirthDate(birthDate: string): string | null {
+  if (!birthDate) return null
+
+  const [, monthStr, dayStr] = birthDate.split('-')
+  const month = parseInt(monthStr, 10)
+  const day = parseInt(dayStr, 10)
+
+  if (isNaN(month) || isNaN(day)) return null
+
+  // 星座日期範圍
+  const zodiacRanges = [
+    { code: 'CAP', start: [1, 1], end: [1, 19] },
+    { code: 'AQU', start: [1, 20], end: [2, 18] },
+    { code: 'PIS', start: [2, 19], end: [3, 20] },
+    { code: 'ARI', start: [3, 21], end: [4, 19] },
+    { code: 'TAU', start: [4, 20], end: [5, 20] },
+    { code: 'GEM', start: [5, 21], end: [6, 20] },
+    { code: 'CAN', start: [6, 21], end: [7, 22] },
+    { code: 'LEO', start: [7, 23], end: [8, 22] },
+    { code: 'VIR', start: [8, 23], end: [9, 22] },
+    { code: 'LIB', start: [9, 23], end: [10, 22] },
+    { code: 'SCO', start: [10, 23], end: [11, 21] },
+    { code: 'SAG', start: [11, 22], end: [12, 21] },
+    { code: 'CAP', start: [12, 22], end: [12, 31] }
+  ]
+
+  for (const range of zodiacRanges) {
+    const [startMonth, startDay] = range.start
+    const [endMonth, endDay] = range.end
+
+    if (startMonth === endMonth) {
+      if (month === startMonth && day >= startDay && day <= endDay) {
+        return range.code
+      }
+    } else {
+      if (
+        (month === startMonth && day >= startDay) ||
+        (month === endMonth && day <= endDay)
+      ) {
+        return range.code
+      }
+    }
+  }
+
+  return null
+}
+
 export function useProfile() {
   const isProfileSet = computed(() => {
     return profile.value.gender !== null && profile.value.zodiacCode !== null
@@ -85,13 +135,27 @@ export function useProfile() {
     return profile.value.partners.find(p => p.isPrimary) || profile.value.partners[0] || null
   })
 
+  const myBirthDate = computed(() => profile.value.birthDate || null)
+
+  // 取得有填寫生日的對象（可用於宿曜道功能）
+  const partnersWithBirthDate = computed(() => {
+    return profile.value.partners.filter(p => p.birthDate)
+  })
+
   const getPartnerZodiac = (partner: Partner) => {
     return ZODIAC_SIGNS.find(z => z.code === partner.zodiacCode)
   }
 
-  function setMyProfile(gender: 'male' | 'female' | 'other', zodiacCode: string) {
+  function setMyProfile(
+    gender: 'male' | 'female' | 'other',
+    zodiacCode: string,
+    birthDate?: string
+  ) {
     profile.value.gender = gender
     profile.value.zodiacCode = zodiacCode
+    if (birthDate) {
+      profile.value.birthDate = birthDate
+    }
   }
 
   function addPartner(partner: Omit<Partner, 'id'>) {
@@ -143,7 +207,9 @@ export function useProfile() {
     profile,
     isProfileSet,
     myZodiac,
+    myBirthDate,
     primaryPartner,
+    partnersWithBirthDate,
     getPartnerZodiac,
     setMyProfile,
     addPartner,

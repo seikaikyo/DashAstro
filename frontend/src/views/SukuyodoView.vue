@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useProfile, ZODIAC_SIGNS } from '../stores/profile'
+
+const { profile, myBirthDate, partnersWithBirthDate } = useProfile()
 
 interface Mansion {
   index: number
@@ -481,6 +484,31 @@ const getScoreLevel = (score: number) => {
           查詢<ruby>本命宿<rp>(</rp><rt>ほんみょうしゅく</rt><rp>)</rp></ruby>
         </h2>
         <p class="section-desc">輸入你的西曆生日，系統會自動轉換為農曆並計算你的本命宿</p>
+
+        <!-- 快速選擇收藏對象 -->
+        <div v-if="myBirthDate || partnersWithBirthDate.length > 0" class="quick-select">
+          <span class="quick-select-label">快速選擇：</span>
+          <button
+            v-if="myBirthDate"
+            class="quick-select-btn"
+            :class="{ active: birthDate === myBirthDate }"
+            @click="birthDate = myBirthDate; lookupMansion()"
+          >
+            我
+          </button>
+          <button
+            v-for="partner in partnersWithBirthDate"
+            :key="partner.id"
+            class="quick-select-btn"
+            :class="{ active: birthDate === partner.birthDate }"
+            @click="birthDate = partner.birthDate!; lookupMansion()"
+          >
+            {{ partner.nickname }}
+          </button>
+          <router-link to="/profile" class="quick-select-add">
+            +
+          </router-link>
+        </div>
 
         <div class="form-row">
           <sl-input
@@ -1271,6 +1299,64 @@ ruby rp {
 .lookup-form {
   max-width: 600px;
   margin: 0 auto var(--space-8);
+}
+
+.quick-select {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  background: var(--cosmos-dusk);
+  border-radius: var(--radius-md);
+}
+
+.quick-select-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.quick-select-btn {
+  padding: var(--space-1) var(--space-3);
+  background: var(--cosmos-night);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.quick-select-btn:hover {
+  border-color: var(--stellar-gold);
+  color: var(--stellar-gold);
+}
+
+.quick-select-btn.active {
+  background: var(--stellar-gold);
+  border-color: var(--stellar-gold);
+  color: var(--cosmos-night);
+}
+
+.quick-select-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: none;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-full);
+  color: var(--text-muted);
+  font-size: 1rem;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.quick-select-add:hover {
+  border-color: var(--stellar-gold);
+  color: var(--stellar-gold);
 }
 
 /* 結果區域 - PC 兩欄佈局 */

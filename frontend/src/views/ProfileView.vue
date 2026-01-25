@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useProfile, ZODIAC_SIGNS, GENDER_OPTIONS } from '../stores/profile'
+import { ref, watch } from 'vue'
+import { useProfile, ZODIAC_SIGNS, GENDER_OPTIONS, getZodiacFromBirthDate } from '../stores/profile'
 import type { Partner } from '../stores/profile'
 
 const {
   profile,
   isProfileSet,
   myZodiac,
+  myBirthDate,
   primaryPartner,
   getPartnerZodiac,
   setMyProfile,
@@ -18,18 +19,43 @@ const {
 // 表單狀態
 const selectedGender = ref(profile.value.gender || 'male')
 const selectedZodiac = ref(profile.value.zodiacCode || '')
+const selectedBirthDate = ref(profile.value.birthDate || '')
 
 // 新增對象表單
 const showAddPartner = ref(false)
 const newPartner = ref({
   nickname: '',
   gender: 'female' as 'male' | 'female' | 'other',
-  zodiacCode: ''
+  zodiacCode: '',
+  birthDate: ''
+})
+
+// 根據生日自動選擇星座
+watch(() => selectedBirthDate.value, (newDate) => {
+  if (newDate) {
+    const zodiac = getZodiacFromBirthDate(newDate)
+    if (zodiac) {
+      selectedZodiac.value = zodiac
+    }
+  }
+})
+
+watch(() => newPartner.value.birthDate, (newDate) => {
+  if (newDate) {
+    const zodiac = getZodiacFromBirthDate(newDate)
+    if (zodiac) {
+      newPartner.value.zodiacCode = zodiac
+    }
+  }
 })
 
 function saveMyProfile() {
   if (!selectedZodiac.value) return
-  setMyProfile(selectedGender.value as 'male' | 'female' | 'other', selectedZodiac.value)
+  setMyProfile(
+    selectedGender.value as 'male' | 'female' | 'other',
+    selectedZodiac.value,
+    selectedBirthDate.value || undefined
+  )
 }
 
 function handleAddPartner() {
@@ -40,14 +66,16 @@ function handleAddPartner() {
       nickname: newPartner.value.nickname || getZodiacName(newPartner.value.zodiacCode),
       gender: newPartner.value.gender,
       zodiacCode: newPartner.value.zodiacCode,
-      isPrimary: false
+      isPrimary: false,
+      birthDate: newPartner.value.birthDate || undefined
     })
 
     // 重置表單
     newPartner.value = {
       nickname: '',
       gender: 'female',
-      zodiacCode: ''
+      zodiacCode: '',
+      birthDate: ''
     }
     showAddPartner.value = false
   } catch (e: any) {
@@ -83,6 +111,16 @@ function getGenderLabel(gender: string) {
         <h2>我的資料</h2>
 
         <div class="form-group">
+          <label>生日</label>
+          <sl-input
+            type="date"
+            v-model="selectedBirthDate"
+            :max="new Date().toISOString().split('T')[0]"
+            help-text="填寫生日可使用宿曜道運勢預測"
+          ></sl-input>
+        </div>
+
+        <div class="form-group">
           <label>性別</label>
           <div class="gender-options">
             <label
@@ -102,7 +140,10 @@ function getGenderLabel(gender: string) {
         </div>
 
         <div class="form-group">
-          <label>我的星座</label>
+          <label>
+            我的星座
+            <span v-if="selectedBirthDate" class="auto-detect-hint">（已根據生日自動選擇）</span>
+          </label>
           <div class="zodiac-grid">
             <button
               v-for="sign in ZODIAC_SIGNS"
@@ -127,6 +168,7 @@ function getGenderLabel(gender: string) {
         <div v-if="isProfileSet" class="profile-summary">
           <sl-icon name="check-circle"></sl-icon>
           已設定：{{ getGenderLabel(profile.gender!) }} {{ myZodiac?.name }}
+          <span v-if="myBirthDate">（{{ myBirthDate }}）</span>
         </div>
       </section>
 
@@ -154,6 +196,7 @@ function getGenderLabel(gender: string) {
                 <span class="partner-name">{{ partner.nickname }}</span>
                 <span class="partner-meta">
                   {{ getGenderLabel(partner.gender) }} {{ getZodiacName(partner.zodiacCode) }}
+                  <span v-if="partner.birthDate" class="partner-birth">{{ partner.birthDate }}</span>
                 </span>
               </div>
             </div>
@@ -204,16 +247,32 @@ function getGenderLabel(gender: string) {
             </sl-select>
           </div>
 
-          <div class="zodiac-grid small">
-            <button
-              v-for="sign in ZODIAC_SIGNS"
-              :key="sign.code"
-              :class="['zodiac-btn', { active: newPartner.zodiacCode === sign.code }]"
-              @click="newPartner.zodiacCode = sign.code"
-            >
-              <span class="zodiac-symbol">{{ sign.symbol }}</span>
-              <span class="zodiac-name">{{ sign.name }}</span>
-            </button>
+          <div class="form-row">
+            <sl-input
+              type="date"
+              v-model="newPartner.birthDate"
+              :max="new Date().toISOString().split('T')[0]"
+              size="small"
+              label="生日（選填，可用於宿曜道）"
+            ></sl-input>
+          </div>
+
+          <div class="form-group">
+            <label>
+              星座
+              <span v-if="newPartner.birthDate" class="auto-detect-hint">（已根據生日自動選擇）</span>
+            </label>
+            <div class="zodiac-grid small">
+              <button
+                v-for="sign in ZODIAC_SIGNS"
+                :key="sign.code"
+                :class="['zodiac-btn', { active: newPartner.zodiacCode === sign.code }]"
+                @click="newPartner.zodiacCode = sign.code"
+              >
+                <span class="zodiac-symbol">{{ sign.symbol }}</span>
+                <span class="zodiac-name">{{ sign.name }}</span>
+              </button>
+            </div>
           </div>
 
           <div class="form-actions">
@@ -451,6 +510,17 @@ function getGenderLabel(gender: string) {
 .partner-meta {
   font-size: 0.8rem;
   color: var(--text-muted);
+}
+
+.partner-birth {
+  margin-left: var(--space-2);
+  color: var(--stellar-gold);
+}
+
+.auto-detect-hint {
+  font-size: 0.8rem;
+  color: var(--stellar-gold);
+  font-weight: normal;
 }
 
 .partner-actions {
