@@ -111,6 +111,110 @@ interface CompatibilityFinderResult {
   should_avoid: CompatibilityCategory
 }
 
+// 運勢相關介面
+interface FortuneScores {
+  overall: number
+  career: number
+  love: number
+  health: number
+  wealth: number
+}
+
+interface DailyFortune {
+  date: string
+  weekday: {
+    name: string
+    reading: string
+    element: string
+    planet: string
+  }
+  your_mansion: {
+    name_jp: string
+    reading: string
+    element: string
+    index: number
+  }
+  element_relation: {
+    type: string
+    description: string
+  }
+  fortune: FortuneScores
+  advice: string
+  lucky: {
+    direction: string
+    direction_reading: string
+    color: string
+    color_reading: string
+    color_hex: string
+    numbers: number[]
+  }
+}
+
+interface MonthlyFortune {
+  year: number
+  month: number
+  month_mansion: {
+    name_jp: string
+    reading: string
+    index: number
+    element: string
+  }
+  your_mansion: {
+    name_jp: string
+    reading: string
+    element: string
+    index: number
+  }
+  relation: {
+    type: string
+    name: string
+    reading: string
+    description: string
+  }
+  theme: {
+    title: string
+    focus: string
+    element_boost: string
+  }
+  fortune: FortuneScores
+  weekly: {
+    week: number
+    score: number
+    focus: string
+  }[]
+  advice: string
+}
+
+interface YearlyFortune {
+  year: number
+  stem: {
+    character: string
+    reading: string
+    element: string
+    yin_yang: string
+  }
+  branch: {
+    character: string
+    name: string
+    reading: string
+    element: string
+  }
+  your_mansion: {
+    name_jp: string
+    reading: string
+    element: string
+    index: number
+  }
+  fortune: FortuneScores
+  monthly_trend: {
+    month: number
+    score: number
+  }[]
+  opportunities: string[]
+  warnings: string[]
+  advice: string
+}
+
 const apiUrl = import.meta.env.VITE_API_URL || 'https://dashastro-api.onrender.com'
 
 // 本命宿查詢
@@ -138,6 +242,13 @@ const showFormula = ref(false)
 const compatFinder = ref<CompatibilityFinderResult | null>(null)
 const finderLoading = ref(false)
 const selectedMansion = ref<CompatibleMansion | null>(null)
+
+// 運勢查詢
+const fortuneTab = ref<'daily' | 'monthly' | 'yearly'>('daily')
+const dailyFortune = ref<DailyFortune | null>(null)
+const monthlyFortune = ref<MonthlyFortune | null>(null)
+const yearlyFortune = ref<YearlyFortune | null>(null)
+const fortuneLoading = ref(false)
 
 // 元素顏色
 const elementColors: Record<string, string> = {
@@ -175,6 +286,9 @@ const lookupMansion = async () => {
   showDetails.value = false
   compatFinder.value = null
   selectedMansion.value = null
+  dailyFortune.value = null
+  monthlyFortune.value = null
+  yearlyFortune.value = null
 
   try {
     const res = await fetch(`${apiUrl}/api/sukuyodo/mansion/${birthDate.value}`)
@@ -182,8 +296,9 @@ const lookupMansion = async () => {
       const data = await res.json()
       if (data.success) {
         mansion.value = data.data
-        // 同時查詢相容星宿
+        // 同時查詢相容星宿和運勢
         fetchCompatibleMansions()
+        fetchAllFortunes()
       } else {
         lookupError.value = data.error || '查詢失敗'
       }
@@ -216,6 +331,83 @@ const fetchCompatibleMansions = async () => {
   } finally {
     finderLoading.value = false
   }
+}
+
+// 運勢查詢函數
+const fetchDailyFortune = async () => {
+  if (!birthDate.value) return
+  fortuneLoading.value = true
+
+  const today = new Date().toISOString().split('T')[0]
+  try {
+    const res = await fetch(`${apiUrl}/api/sukuyodo/fortune/daily/${today}?birth_date=${birthDate.value}`)
+    if (res.ok) {
+      const data = await res.json()
+      if (data.success) {
+        dailyFortune.value = data.data
+      }
+    }
+  } catch (e) {
+    console.error('Failed to fetch daily fortune')
+  } finally {
+    fortuneLoading.value = false
+  }
+}
+
+const fetchMonthlyFortune = async () => {
+  if (!birthDate.value) return
+  fortuneLoading.value = true
+
+  const now = new Date()
+  try {
+    const res = await fetch(`${apiUrl}/api/sukuyodo/fortune/monthly/${now.getFullYear()}/${now.getMonth() + 1}?birth_date=${birthDate.value}`)
+    if (res.ok) {
+      const data = await res.json()
+      if (data.success) {
+        monthlyFortune.value = data.data
+      }
+    }
+  } catch (e) {
+    console.error('Failed to fetch monthly fortune')
+  } finally {
+    fortuneLoading.value = false
+  }
+}
+
+const fetchYearlyFortune = async () => {
+  if (!birthDate.value) return
+  fortuneLoading.value = true
+
+  const year = new Date().getFullYear()
+  try {
+    const res = await fetch(`${apiUrl}/api/sukuyodo/fortune/yearly/${year}?birth_date=${birthDate.value}`)
+    if (res.ok) {
+      const data = await res.json()
+      if (data.success) {
+        yearlyFortune.value = data.data
+      }
+    }
+  } catch (e) {
+    console.error('Failed to fetch yearly fortune')
+  } finally {
+    fortuneLoading.value = false
+  }
+}
+
+const fetchAllFortunes = async () => {
+  await Promise.all([
+    fetchDailyFortune(),
+    fetchMonthlyFortune(),
+    fetchYearlyFortune()
+  ])
+}
+
+const getFortuneLevel = (score: number) => {
+  if (score >= 90) return { text: '大吉', class: 'excellent' }
+  if (score >= 75) return { text: '吉', class: 'good' }
+  if (score >= 60) return { text: '中吉', class: 'fair' }
+  if (score >= 45) return { text: '小吉', class: 'caution' }
+  return { text: '凶', class: 'warning' }
 }
 
 const calculateCompatibility = async () => {
@@ -455,6 +647,284 @@ const getScoreLevel = (score: number) => {
           </div>
         </section>
       </div>
+
+      <!-- 運勢區塊 -->
+      <section v-if="mansion && (dailyFortune || monthlyFortune || yearlyFortune)" class="fortune-section card card-gold">
+        <h2 class="section-title">
+          <ruby>運勢<rp>(</rp><rt>うんせい</rt><rp>)</rp></ruby>預測
+        </h2>
+
+        <!-- Tab 切換 -->
+        <div class="fortune-tabs">
+          <button
+            class="tab-btn"
+            :class="{ active: fortuneTab === 'daily' }"
+            @click="fortuneTab = 'daily'"
+          >今日</button>
+          <button
+            class="tab-btn"
+            :class="{ active: fortuneTab === 'monthly' }"
+            @click="fortuneTab = 'monthly'"
+          >本月</button>
+          <button
+            class="tab-btn"
+            :class="{ active: fortuneTab === 'yearly' }"
+            @click="fortuneTab = 'yearly'"
+          >本年</button>
+        </div>
+
+        <div v-if="fortuneLoading" class="fortune-loading">
+          <sl-spinner></sl-spinner>
+          <span>載入運勢中...</span>
+        </div>
+
+        <!-- 今日運勢 -->
+        <div v-else-if="fortuneTab === 'daily' && dailyFortune" class="fortune-content daily">
+          <div class="fortune-header">
+            <div class="fortune-date">
+              <span class="date-label">{{ dailyFortune.date }}</span>
+              <ruby class="weekday">
+                {{ dailyFortune.weekday.name }}<rp>(</rp><rt>{{ dailyFortune.weekday.reading }}</rt><rp>)</rp>
+              </ruby>
+            </div>
+            <div class="element-match">
+              <span class="match-label">元素：</span>
+              <span class="match-value" :style="{ color: elementColors[dailyFortune.weekday.element] }">
+                {{ dailyFortune.weekday.element }}
+              </span>
+              <span class="match-desc">{{ dailyFortune.element_relation.description }}</span>
+            </div>
+          </div>
+
+          <div class="fortune-overall" :class="getFortuneLevel(dailyFortune.fortune.overall).class">
+            <span class="overall-score">{{ dailyFortune.fortune.overall }}</span>
+            <span class="overall-label">{{ getFortuneLevel(dailyFortune.fortune.overall).text }}</span>
+          </div>
+
+          <div class="fortune-grid">
+            <div class="fortune-item">
+              <span class="fortune-icon">&#128188;</span>
+              <span class="fortune-name">事業</span>
+              <div class="fortune-bar">
+                <div class="bar-fill" :style="{ width: dailyFortune.fortune.career + '%' }"></div>
+              </div>
+              <span class="fortune-value">{{ dailyFortune.fortune.career }}</span>
+            </div>
+            <div class="fortune-item">
+              <span class="fortune-icon">&#10084;</span>
+              <span class="fortune-name">感情</span>
+              <div class="fortune-bar">
+                <div class="bar-fill" :style="{ width: dailyFortune.fortune.love + '%' }"></div>
+              </div>
+              <span class="fortune-value">{{ dailyFortune.fortune.love }}</span>
+            </div>
+            <div class="fortune-item">
+              <span class="fortune-icon">&#127807;</span>
+              <span class="fortune-name">健康</span>
+              <div class="fortune-bar">
+                <div class="bar-fill" :style="{ width: dailyFortune.fortune.health + '%' }"></div>
+              </div>
+              <span class="fortune-value">{{ dailyFortune.fortune.health }}</span>
+            </div>
+            <div class="fortune-item">
+              <span class="fortune-icon">&#128176;</span>
+              <span class="fortune-name">財運</span>
+              <div class="fortune-bar">
+                <div class="bar-fill" :style="{ width: dailyFortune.fortune.wealth + '%' }"></div>
+              </div>
+              <span class="fortune-value">{{ dailyFortune.fortune.wealth }}</span>
+            </div>
+          </div>
+
+          <p class="fortune-advice">{{ dailyFortune.advice }}</p>
+
+          <div class="lucky-items">
+            <h4>幸運指南</h4>
+            <div class="lucky-grid">
+              <div class="lucky-item">
+                <span class="lucky-label">方位</span>
+                <ruby class="lucky-value">
+                  {{ dailyFortune.lucky.direction }}<rp>(</rp><rt>{{ dailyFortune.lucky.direction_reading }}</rt><rp>)</rp>
+                </ruby>
+              </div>
+              <div class="lucky-item">
+                <span class="lucky-label">顏色</span>
+                <span class="lucky-value">
+                  <span class="color-dot" :style="{ background: dailyFortune.lucky.color_hex }"></span>
+                  {{ dailyFortune.lucky.color }}
+                </span>
+              </div>
+              <div class="lucky-item">
+                <span class="lucky-label">數字</span>
+                <span class="lucky-value">{{ dailyFortune.lucky.numbers.join(', ') }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 本月運勢 -->
+        <div v-else-if="fortuneTab === 'monthly' && monthlyFortune" class="fortune-content monthly">
+          <div class="fortune-header">
+            <div class="fortune-date">
+              <span class="date-label">{{ monthlyFortune.year }} 年 {{ monthlyFortune.month }} 月</span>
+            </div>
+            <div class="month-theme">
+              <span class="theme-title">{{ monthlyFortune.theme.title }}</span>
+              <span class="theme-focus">重點：{{ monthlyFortune.theme.focus }}</span>
+            </div>
+          </div>
+
+          <div class="month-relation">
+            <span class="relation-label">月宿關係：</span>
+            <ruby class="relation-name">
+              {{ monthlyFortune.relation.name }}<rp>(</rp><rt>{{ monthlyFortune.relation.reading }}</rt><rp>)</rp>
+            </ruby>
+          </div>
+
+          <div class="fortune-overall" :class="getFortuneLevel(monthlyFortune.fortune.overall).class">
+            <span class="overall-score">{{ monthlyFortune.fortune.overall }}</span>
+            <span class="overall-label">{{ getFortuneLevel(monthlyFortune.fortune.overall).text }}</span>
+          </div>
+
+          <div class="fortune-grid">
+            <div class="fortune-item">
+              <span class="fortune-icon">&#128188;</span>
+              <span class="fortune-name">事業</span>
+              <div class="fortune-bar">
+                <div class="bar-fill" :style="{ width: monthlyFortune.fortune.career + '%' }"></div>
+              </div>
+              <span class="fortune-value">{{ monthlyFortune.fortune.career }}</span>
+            </div>
+            <div class="fortune-item">
+              <span class="fortune-icon">&#10084;</span>
+              <span class="fortune-name">感情</span>
+              <div class="fortune-bar">
+                <div class="bar-fill" :style="{ width: monthlyFortune.fortune.love + '%' }"></div>
+              </div>
+              <span class="fortune-value">{{ monthlyFortune.fortune.love }}</span>
+            </div>
+            <div class="fortune-item">
+              <span class="fortune-icon">&#127807;</span>
+              <span class="fortune-name">健康</span>
+              <div class="fortune-bar">
+                <div class="bar-fill" :style="{ width: monthlyFortune.fortune.health + '%' }"></div>
+              </div>
+              <span class="fortune-value">{{ monthlyFortune.fortune.health }}</span>
+            </div>
+            <div class="fortune-item">
+              <span class="fortune-icon">&#128176;</span>
+              <span class="fortune-name">財運</span>
+              <div class="fortune-bar">
+                <div class="bar-fill" :style="{ width: monthlyFortune.fortune.wealth + '%' }"></div>
+              </div>
+              <span class="fortune-value">{{ monthlyFortune.fortune.wealth }}</span>
+            </div>
+          </div>
+
+          <div class="weekly-breakdown">
+            <h4>每週概況</h4>
+            <div class="weekly-grid">
+              <div v-for="w in monthlyFortune.weekly" :key="w.week" class="weekly-item">
+                <span class="week-num">第 {{ w.week }} 週</span>
+                <span class="week-score" :class="getFortuneLevel(w.score).class">{{ w.score }}</span>
+                <span class="week-focus">{{ w.focus }}</span>
+              </div>
+            </div>
+          </div>
+
+          <p class="fortune-advice">{{ monthlyFortune.advice }}</p>
+        </div>
+
+        <!-- 本年運勢 -->
+        <div v-else-if="fortuneTab === 'yearly' && yearlyFortune" class="fortune-content yearly">
+          <div class="fortune-header">
+            <div class="fortune-date">
+              <span class="date-label">{{ yearlyFortune.year }} 年</span>
+            </div>
+            <div class="year-info">
+              <ruby class="stem-branch">
+                {{ yearlyFortune.stem.character }}{{ yearlyFortune.branch.character }}
+                <rp>(</rp><rt>{{ yearlyFortune.stem.reading }}{{ yearlyFortune.branch.reading }}</rt><rp>)</rp>
+              </ruby>
+              <span class="zodiac">{{ yearlyFortune.branch.name }}年</span>
+            </div>
+          </div>
+
+          <div class="fortune-overall" :class="getFortuneLevel(yearlyFortune.fortune.overall).class">
+            <span class="overall-score">{{ yearlyFortune.fortune.overall }}</span>
+            <span class="overall-label">{{ getFortuneLevel(yearlyFortune.fortune.overall).text }}</span>
+          </div>
+
+          <div class="fortune-grid">
+            <div class="fortune-item">
+              <span class="fortune-icon">&#128188;</span>
+              <span class="fortune-name">事業</span>
+              <div class="fortune-bar">
+                <div class="bar-fill" :style="{ width: yearlyFortune.fortune.career + '%' }"></div>
+              </div>
+              <span class="fortune-value">{{ yearlyFortune.fortune.career }}</span>
+            </div>
+            <div class="fortune-item">
+              <span class="fortune-icon">&#10084;</span>
+              <span class="fortune-name">感情</span>
+              <div class="fortune-bar">
+                <div class="bar-fill" :style="{ width: yearlyFortune.fortune.love + '%' }"></div>
+              </div>
+              <span class="fortune-value">{{ yearlyFortune.fortune.love }}</span>
+            </div>
+            <div class="fortune-item">
+              <span class="fortune-icon">&#127807;</span>
+              <span class="fortune-name">健康</span>
+              <div class="fortune-bar">
+                <div class="bar-fill" :style="{ width: yearlyFortune.fortune.health + '%' }"></div>
+              </div>
+              <span class="fortune-value">{{ yearlyFortune.fortune.health }}</span>
+            </div>
+            <div class="fortune-item">
+              <span class="fortune-icon">&#128176;</span>
+              <span class="fortune-name">財運</span>
+              <div class="fortune-bar">
+                <div class="bar-fill" :style="{ width: yearlyFortune.fortune.wealth + '%' }"></div>
+              </div>
+              <span class="fortune-value">{{ yearlyFortune.fortune.wealth }}</span>
+            </div>
+          </div>
+
+          <div class="monthly-trend">
+            <h4>月度趨勢</h4>
+            <div class="trend-chart">
+              <div
+                v-for="m in yearlyFortune.monthly_trend"
+                :key="m.month"
+                class="trend-bar"
+                :style="{ height: m.score + '%' }"
+                :class="getFortuneLevel(m.score).class"
+              >
+                <span class="trend-value">{{ m.score }}</span>
+              </div>
+            </div>
+            <div class="trend-labels">
+              <span v-for="i in 12" :key="i">{{ i }}月</span>
+            </div>
+          </div>
+
+          <div v-if="yearlyFortune.opportunities.length" class="opportunities">
+            <h4>機會提示</h4>
+            <ul>
+              <li v-for="(opp, idx) in yearlyFortune.opportunities" :key="idx">{{ opp }}</li>
+            </ul>
+          </div>
+
+          <div v-if="yearlyFortune.warnings.length" class="warnings">
+            <h4>注意事項</h4>
+            <ul>
+              <li v-for="(warn, idx) in yearlyFortune.warnings" :key="idx">{{ warn }}</li>
+            </ul>
+          </div>
+
+          <p class="fortune-advice">{{ yearlyFortune.advice }}</p>
+        </div>
+      </section>
 
       <!-- 相性診斷 -->
       <section class="compatibility-section card">
@@ -1543,6 +2013,465 @@ ruby rp {
   color: var(--text-muted);
 }
 
+/* 運勢區塊 */
+.fortune-section {
+  max-width: 800px;
+  margin: 0 auto var(--space-8);
+}
+
+.fortune-tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+  border-bottom: 1px solid var(--border-default);
+  padding-bottom: var(--space-2);
+}
+
+.tab-btn {
+  padding: var(--space-2) var(--space-4);
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all var(--transition-fast);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.tab-btn:hover {
+  color: var(--stellar-gold);
+}
+
+.tab-btn.active {
+  color: var(--stellar-gold);
+  background: var(--cosmos-night);
+  font-weight: 600;
+}
+
+.fortune-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-8);
+  color: var(--text-muted);
+}
+
+.fortune-content {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fortune-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.fortune-date {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.date-label {
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.weekday {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.weekday rt {
+  font-size: 0.6em;
+}
+
+.element-match {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+}
+
+.match-label {
+  color: var(--text-muted);
+}
+
+.match-value {
+  font-weight: 600;
+}
+
+.match-desc {
+  color: var(--text-secondary);
+}
+
+.fortune-overall {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-6);
+  margin-bottom: var(--space-6);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-lg);
+}
+
+.overall-score {
+  font-size: 4rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.overall-label {
+  font-size: 1.1rem;
+  margin-top: var(--space-2);
+}
+
+.fortune-overall.excellent .overall-score { color: #4A9B5A; }
+.fortune-overall.excellent .overall-label { color: #4A9B5A; }
+.fortune-overall.good .overall-score { color: var(--stellar-gold); }
+.fortune-overall.good .overall-label { color: var(--stellar-gold); }
+.fortune-overall.fair .overall-score { color: #7CB3D9; }
+.fortune-overall.fair .overall-label { color: #7CB3D9; }
+.fortune-overall.caution .overall-score { color: #E89B3C; }
+.fortune-overall.caution .overall-label { color: #E89B3C; }
+.fortune-overall.warning .overall-score { color: #E85D4C; }
+.fortune-overall.warning .overall-label { color: #E85D4C; }
+
+.fortune-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.fortune-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-md);
+}
+
+.fortune-icon {
+  font-size: 1.2rem;
+}
+
+.fortune-name {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.fortune-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--cosmos-twilight);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--stellar-gold), #E89B3C);
+  border-radius: var(--radius-full);
+  transition: width 0.5s ease;
+}
+
+.fortune-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--stellar-gold);
+  min-width: 30px;
+  text-align: right;
+}
+
+.fortune-advice {
+  padding: var(--space-4);
+  background: var(--cosmos-twilight);
+  border-radius: var(--radius-md);
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-4);
+  border-left: 3px solid var(--stellar-gold);
+}
+
+/* 幸運指南 */
+.lucky-items {
+  padding: var(--space-4);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-md);
+}
+
+.lucky-items h4 {
+  color: var(--stellar-gold);
+  margin-bottom: var(--space-3);
+  font-size: 0.95rem;
+}
+
+.lucky-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+}
+
+.lucky-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-2);
+}
+
+.lucky-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: var(--space-1);
+}
+
+.lucky-value {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* 月運勢 */
+.month-theme {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.theme-title {
+  font-size: 1rem;
+  color: var(--stellar-gold);
+  font-weight: 600;
+}
+
+.theme-focus {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.month-relation {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  background: var(--cosmos-twilight);
+  border-radius: var(--radius-md);
+}
+
+.relation-label {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.month-relation .relation-name {
+  color: var(--stellar-gold);
+  font-weight: 600;
+}
+
+.weekly-breakdown {
+  padding: var(--space-4);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+}
+
+.weekly-breakdown h4 {
+  color: var(--stellar-gold);
+  margin-bottom: var(--space-3);
+  font-size: 0.95rem;
+}
+
+.weekly-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+}
+
+.weekly-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-2);
+  background: var(--cosmos-twilight);
+  border-radius: var(--radius-md);
+}
+
+.week-num {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.week-score {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: var(--space-1) 0;
+}
+
+.week-score.excellent { color: #4A9B5A; }
+.week-score.good { color: var(--stellar-gold); }
+.week-score.fair { color: #7CB3D9; }
+.week-score.caution { color: #E89B3C; }
+.week-score.warning { color: #E85D4C; }
+
+.week-focus {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* 年運勢 */
+.year-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.stem-branch {
+  font-size: 1.1rem;
+  color: var(--stellar-gold);
+  font-weight: 600;
+}
+
+.stem-branch rt {
+  font-size: 0.5em;
+}
+
+.zodiac {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  padding: var(--space-1) var(--space-2);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-md);
+}
+
+.monthly-trend {
+  padding: var(--space-4);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+}
+
+.monthly-trend h4 {
+  color: var(--stellar-gold);
+  margin-bottom: var(--space-3);
+  font-size: 0.95rem;
+}
+
+.trend-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-1);
+  height: 120px;
+  padding: var(--space-2) 0;
+}
+
+.trend-bar {
+  flex: 1;
+  background: var(--cosmos-twilight);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 20px;
+  transition: height 0.5s ease;
+}
+
+.trend-bar.excellent { background: #4A9B5A; }
+.trend-bar.good { background: var(--stellar-gold); }
+.trend-bar.fair { background: #7CB3D9; }
+.trend-bar.caution { background: #E89B3C; }
+.trend-bar.warning { background: #E85D4C; }
+
+.trend-value {
+  font-size: 0.65rem;
+  color: var(--cosmos-night);
+  font-weight: 600;
+  padding-top: var(--space-1);
+}
+
+.trend-labels {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.trend-labels span {
+  flex: 1;
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.opportunities, .warnings {
+  padding: var(--space-4);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+}
+
+.opportunities h4 {
+  color: #4A9B5A;
+  margin-bottom: var(--space-2);
+  font-size: 0.95rem;
+}
+
+.warnings h4 {
+  color: #E85D4C;
+  margin-bottom: var(--space-2);
+  font-size: 0.95rem;
+}
+
+.opportunities ul, .warnings ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.opportunities li, .warnings li {
+  padding: var(--space-1) 0;
+  padding-left: var(--space-4);
+  position: relative;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.opportunities li::before {
+  content: "★";
+  position: absolute;
+  left: 0;
+  color: #4A9B5A;
+}
+
+.warnings li::before {
+  content: "!";
+  position: absolute;
+  left: 0;
+  color: #E85D4C;
+}
+
 @media (max-width: 900px) {
   .results-layout {
     grid-template-columns: 1fr;
@@ -1592,6 +2521,53 @@ ruby rp {
     width: 100%;
     margin-top: var(--space-2);
     text-align: center;
+  }
+
+  /* 運勢響應式 */
+  .fortune-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fortune-item {
+    grid-template-columns: auto auto 1fr auto;
+  }
+
+  .lucky-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+
+  .weekly-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .trend-chart {
+    height: 80px;
+  }
+
+  .trend-value {
+    font-size: 0.55rem;
+  }
+
+  .trend-labels span {
+    font-size: 0.6rem;
+  }
+
+  .fortune-header {
+    flex-direction: column;
+  }
+
+  .element-match {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .month-theme {
+    align-items: flex-start;
+  }
+
+  .year-info {
+    flex-wrap: wrap;
   }
 }
 </style>
