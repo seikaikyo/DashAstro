@@ -19,7 +19,10 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: list[str] = [
         "http://localhost:5173",
-        "https://astro.dashai.dev"
+        "http://localhost:3000",
+        "https://astro.dashai.dev",
+        "https://dashastro.vercel.app",
+        "https://dashastro-seikaikyos-projects.vercel.app"
     ]
 
     class Config:
