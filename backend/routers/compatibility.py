@@ -1,9 +1,13 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+from sqlmodel import Session
 
+from database import get_session
 from services.compatibility import compatibility_service
+from models.stats import Features
+from services.stats import stats_service
 
 router = APIRouter(prefix="/api/compatibility", tags=["Compatibility"])
 
@@ -30,22 +34,32 @@ def get_sign_list():
 
 
 @router.post("/analyze")
-def analyze_compatibility(request: CompatibilityRequest):
+def analyze_compatibility(
+    request: CompatibilityRequest,
+    session: Session = Depends(get_session)
+):
     """分析兩個星座的配對"""
     result = compatibility_service.calculate_compatibility(
         request.sign1,
         request.sign2
     )
+    # 記錄使用統計
+    stats_service.log_usage(session, Features.COMPATIBILITY)
     return result
 
 
 @router.post("/weekly")
-def get_weekly_compatibility(request: WeeklyCompatibilityRequest):
+def get_weekly_compatibility(
+    request: WeeklyCompatibilityRequest,
+    session: Session = Depends(get_session)
+):
     """取得本週配對運勢"""
     result = compatibility_service.get_weekly_compatibility(
         request.sign1,
         request.sign2
     )
+    # 記錄使用統計
+    stats_service.log_usage(session, Features.COMPATIBILITY)
     return result
 
 

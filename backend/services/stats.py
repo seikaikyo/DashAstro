@@ -1,0 +1,143 @@
+"""使用統計服務"""
+from datetime import date, datetime, timedelta
+from typing import Optional
+from sqlmodel import Session, select
+from models.stats import UsageStats, Features
+
+
+class StatsService:
+    """使用統計服務"""
+
+    def log_usage(self, session: Session, feature: str) -> None:
+        """記錄功能使用次數"""
+        today = date.today()
+
+        # 查找今日該功能的統計記錄
+        stats = session.exec(
+            select(UsageStats)
+            .where(UsageStats.feature == feature)
+            .where(UsageStats.date == today)
+        ).first()
+
+        if stats:
+            # 更新計數
+            stats.count += 1
+            stats.updated_at = datetime.utcnow()
+        else:
+            # 建立新記錄
+            stats = UsageStats(
+                feature=feature,
+                date=today,
+                count=1
+            )
+            session.add(stats)
+
+        session.commit()
+
+    def get_daily_stats(
+        self,
+        session: Session,
+        feature: Optional[str] = None,
+        days: int = 7
+    ) -> list[dict]:
+        """取得每日統計資料"""
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days - 1)
+
+        query = select(UsageStats).where(
+            UsageStats.date >= start_date,
+            UsageStats.date <= end_date
+        )
+
+        if feature:
+            query = query.where(UsageStats.feature == feature)
+
+        query = query.order_by(UsageStats.date.desc(), UsageStats.feature)
+        results = session.exec(query).all()
+
+        return [
+            {
+                "feature": r.feature,
+                "date": r.date.isoformat(),
+                "count": r.count
+            }
+            for r in results
+        ]
+
+    def get_summary(self, session: Session, days: int = 30) -> dict:
+        """取得統計摘要"""
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days - 1)
+
+        results = session.exec(
+            select(UsageStats).where(
+                UsageStats.date >= start_date,
+                UsageStats.date <= end_date
+            )
+        ).all()
+
+        # 依功能彙總
+        summary = {}
+        total = 0
+
+        for r in results:
+            if r.feature not in summary:
+                summary[r.feature] = 0
+            summary[r.feature] += r.count
+            total += r.count
+
+        # 今日統計
+        today_results = session.exec(
+            select(UsageStats).where(UsageStats.date == end_date)
+        ).all()
+
+        today_total = sum(r.count for r in today_results)
+        today_by_feature = {r.feature: r.count for r in today_results}
+
+        return {
+            "period_days": days,
+            "period_start": start_date.isoformat(),
+            "period_end": end_date.isoformat(),
+            "total_usage": total,
+            "by_feature": summary,
+            "today": {
+                "total": today_total,
+                "by_feature": today_by_feature
+            }
+        }
+
+    def get_feature_trend(
+        self,
+        session: Session,
+        feature: str,
+        days: int = 30
+    ) -> list[dict]:
+        """取得特定功能的趨勢資料"""
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days - 1)
+
+        results = session.exec(
+            select(UsageStats)
+            .where(UsageStats.feature == feature)
+            .where(UsageStats.date >= start_date)
+            .where(UsageStats.date <= end_date)
+            .order_by(UsageStats.date)
+        ).all()
+
+        # 建立完整日期序列（補零）
+        date_counts = {r.date: r.count for r in results}
+        trend = []
+
+        current = start_date
+        while current <= end_date:
+            trend.append({
+                "date": current.isoformat(),
+                "count": date_counts.get(current, 0)
+            })
+            current += timedelta(days=1)
+
+        return trend
+
+
+# 全域實例
+stats_service = StatsService()

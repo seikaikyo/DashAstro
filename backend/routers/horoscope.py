@@ -9,6 +9,8 @@ from models.horoscope import (
     WeeklyHoroscope, WeeklyHoroscopeRead, WeeklyHoroscopeWithZodiac,
     MonthlyHoroscope, MonthlyHoroscopeRead, MonthlyHoroscopeWithZodiac
 )
+from models.stats import Features
+from services.stats import stats_service
 
 router = APIRouter(prefix="/api/horoscope", tags=["Horoscope"])
 
@@ -75,6 +77,9 @@ def get_weekly_horoscope(
             status_code=404,
             detail=f"尚無 {sign.name_zh} 本週運勢資料"
         )
+
+    # 記錄使用統計
+    stats_service.log_usage(session, Features.WEEKLY_HOROSCOPE)
 
     return WeeklyHoroscopeWithZodiac(
         **horoscope.model_dump(),
@@ -157,6 +162,9 @@ async def get_monthly_horoscope(
             status_code=404,
             detail=f"尚無 {sign.name_zh} {month}月運勢資料"
         )
+
+    # 記錄使用統計
+    stats_service.log_usage(session, Features.MONTHLY_HOROSCOPE)
 
     return {
         **horoscope.model_dump(),

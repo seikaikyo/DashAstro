@@ -11,6 +11,8 @@ from models.tarot import (
     DrawRequest, DrawnCard, InterpretRequest,
     CompatibilityContext
 )
+from models.stats import Features
+from services.stats import stats_service
 
 router = APIRouter(prefix="/api/tarot", tags=["Tarot"])
 
@@ -102,6 +104,9 @@ def draw_cards(
     session.add(reading)
     session.commit()
     session.refresh(reading)
+
+    # 記錄使用統計
+    stats_service.log_usage(session, Features.TAROT_DRAW)
 
     return reading
 
@@ -215,6 +220,9 @@ async def interpret_reading(
         reading.ai_interpretation = interpretation
         session.add(reading)
         session.commit()
+
+        # 記錄使用統計
+        stats_service.log_usage(session, Features.TAROT_INTERPRET)
 
         return {
             "reading_id": str(reading.id),

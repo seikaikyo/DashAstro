@@ -1,9 +1,13 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime
 from typing import Optional
+from sqlmodel import Session
 
+from database import get_session
 from services.ephemeris import ephemeris_service
 from services.astrology import astrology_service
+from models.stats import Features
+from services.stats import stats_service
 
 router = APIRouter(prefix="/api/astronomy", tags=["Astronomy"])
 
@@ -79,7 +83,10 @@ async def get_aspects(datetime_str: Optional[str] = None):
 
 
 @router.get("/summary")
-async def get_sky_summary(datetime_str: Optional[str] = None):
+async def get_sky_summary(
+    datetime_str: Optional[str] = None,
+    session: Session = Depends(get_session)
+):
     """取得當前天象摘要"""
     try:
         dt = datetime.fromisoformat(datetime_str) if datetime_str else None
@@ -87,5 +94,8 @@ async def get_sky_summary(datetime_str: Optional[str] = None):
         raise HTTPException(status_code=400, detail="無效的時間格式")
 
     summary = astrology_service.get_current_sky_summary(dt)
+
+    # 記錄使用統計
+    stats_service.log_usage(session, Features.SKY_VIEW)
 
     return summary
