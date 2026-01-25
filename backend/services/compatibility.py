@@ -202,16 +202,9 @@ class CompatibilityService:
         sign2: str,
         dt: Optional[datetime] = None
     ) -> dict:
-        """取得本週配對運勢 (簡化版，用於週運勢頁面)"""
-        full = self.calculate_compatibility(sign1, sign2, dt)
-
-        return {
-            "partner_sign": full["sign2_name"],
-            "score": full["overall_score"],
-            "aspect_name": full["aspect"]["name"],
-            "summary": full["advice"],
-            "sky_note": full["sky_influence"]["influences"][0] if full["sky_influence"]["influences"] else ""
-        }
+        """取得本週配對運勢 (供前端顯示)"""
+        # 直接回傳完整分析結果
+        return self.calculate_compatibility(sign1, sign2, dt)
 
 
 # 全域實例
