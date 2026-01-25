@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useProfile, ZODIAC_SIGNS } from '../stores/profile'
 
 interface TarotSpread {
   id: number
@@ -12,9 +13,12 @@ interface TarotSpread {
 }
 
 const router = useRouter()
+const { profile, isProfileSet, primaryPartner, getPartnerZodiac } = useProfile()
+
 const spreads = ref<TarotSpread[]>([])
 const selectedSpread = ref<string>('single')
 const question = ref('')
+const includeCompatibility = ref(true)
 const loading = ref(true)
 const drawing = ref(false)
 
@@ -33,20 +37,57 @@ onMounted(async () => {
   }
 })
 
+// 判斷問題是否與感情相關
+const isRelationshipQuestion = computed(() => {
+  const keywords = ['感情', '愛情', '戀愛', '對象', '另一半', '交往', '關係', '喜歡', '曖昧', '復合', '分手']
+  return keywords.some(kw => question.value.includes(kw))
+})
+
+// 是否顯示配對選項
+const showCompatibilityOption = computed(() => {
+  return isProfileSet.value && primaryPartner.value && isRelationshipQuestion.value
+})
+
+const myZodiacName = computed(() => {
+  return ZODIAC_SIGNS.find(z => z.code === profile.value.zodiacCode)?.name || ''
+})
+
+const partnerName = computed(() => {
+  if (!primaryPartner.value) return ''
+  return primaryPartner.value.nickname || getPartnerZodiac(primaryPartner.value)?.name || ''
+})
+
 const drawCards = async () => {
   drawing.value = true
   try {
+    const body: any = {
+      spread_code: selectedSpread.value,
+      question: question.value || null
+    }
+
+    // 加入配對資訊
+    if (includeCompatibility.value && isProfileSet.value && primaryPartner.value && isRelationshipQuestion.value) {
+      body.compatibility = {
+        user_zodiac: profile.value.zodiacCode,
+        user_gender: profile.value.gender,
+        partner_zodiac: primaryPartner.value.zodiacCode,
+        partner_gender: primaryPartner.value.gender,
+        partner_nickname: primaryPartner.value.nickname
+      }
+    }
+
     const res = await fetch(`${apiUrl}/api/tarot/draw`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        spread_code: selectedSpread.value,
-        question: question.value || null
-      })
+      body: JSON.stringify(body)
     })
 
     if (res.ok) {
       const reading = await res.json()
+      // 將配對資訊存到 sessionStorage 供解讀頁使用
+      if (body.compatibility) {
+        sessionStorage.setItem(`tarot_compat_${reading.id}`, JSON.stringify(body.compatibility))
+      }
       router.push(`/tarot/reading/${reading.id}`)
     }
   } catch (e) {
@@ -95,6 +136,27 @@ const drawCards = async () => {
             rows="3"
           ></sl-textarea>
           <p class="form-hint">專注於一個具體的問題，會得到更準確的指引</p>
+        </div>
+
+        <!-- 配對分析選項 -->
+        <div v-if="showCompatibilityOption" class="compat-option">
+          <label class="compat-toggle">
+            <input type="checkbox" v-model="includeCompatibility" />
+            <span class="toggle-text">
+              加入配對分析
+              <span class="toggle-desc">
+                ({{ myZodiacName }} &times; {{ partnerName }})
+              </span>
+            </span>
+          </label>
+        </div>
+
+        <!-- 未設定檔案提示 -->
+        <div v-else-if="!isProfileSet && isRelationshipQuestion" class="setup-hint">
+          <router-link to="/profile">
+            <sl-icon name="person-plus"></sl-icon>
+            設定我的資料，獲得專屬配對解讀
+          </router-link>
         </div>
 
         <button
@@ -217,6 +279,54 @@ const drawCards = async () => {
   font-size: 0.8rem;
   color: var(--text-muted);
   margin-top: var(--space-2);
+}
+
+/* 配對選項 */
+.compat-option {
+  margin-bottom: var(--space-6);
+  padding: var(--space-4);
+  background: var(--cosmos-night);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-md);
+}
+
+.compat-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  cursor: pointer;
+}
+
+.compat-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--stellar-gold);
+}
+
+.toggle-text {
+  color: var(--text-primary);
+}
+
+.toggle-desc {
+  color: var(--stellar-gold);
+  font-size: 0.9rem;
+}
+
+.setup-hint {
+  margin-bottom: var(--space-6);
+  text-align: center;
+}
+
+.setup-hint a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.setup-hint a:hover {
+  color: var(--stellar-gold);
 }
 
 .draw-btn {
