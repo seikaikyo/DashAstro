@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
-import { useProfile } from '../stores/profile'
+import { useProfile, type Partner } from '../stores/profile'
+import PartnerSelector from '../components/PartnerSelector.vue'
 
 interface Planet {
   planet: string
@@ -64,6 +65,9 @@ const loading = ref(true)
 const loadingCompat = ref(false)
 const error = ref('')
 
+// 當前選擇的對象（預設為主要對象）
+const selectedPartner = ref<Partner | null>(null)
+
 const apiUrl = import.meta.env.VITE_API_URL || 'https://dashastro-api.onrender.com'
 
 onMounted(async () => {
@@ -80,21 +84,26 @@ onMounted(async () => {
     loading.value = false
   }
 
+  // 初始化選擇的對象為主要對象
+  if (primaryPartner.value) {
+    selectedPartner.value = primaryPartner.value
+  }
+
   // 如果有設定檔案，載入配對分析
-  if (isProfileSet.value && primaryPartner.value) {
+  if (isProfileSet.value && selectedPartner.value) {
     await loadCompatibility()
   }
 })
 
-// 監聽主要對象變化
-watch(primaryPartner, async (newPartner) => {
+// 監聽選擇的對象變化
+watch(selectedPartner, async (newPartner) => {
   if (newPartner && isProfileSet.value) {
     await loadCompatibility()
   }
 })
 
 async function loadCompatibility() {
-  if (!profile.value.zodiacCode || !primaryPartner.value) return
+  if (!profile.value.zodiacCode || !selectedPartner.value) return
 
   loadingCompat.value = true
   try {
@@ -103,7 +112,7 @@ async function loadCompatibility() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sign1: profile.value.zodiacCode,
-        sign2: primaryPartner.value.zodiacCode
+        sign2: selectedPartner.value.zodiacCode
       })
     })
     if (res.ok) {
@@ -137,8 +146,8 @@ const myPlanets = computed(() => {
 })
 
 const partnerPlanets = computed(() => {
-  if (!summary.value || !primaryPartner.value) return []
-  return summary.value.planet_positions.filter(p => p.sign_code === primaryPartner.value!.zodiacCode)
+  if (!summary.value || !selectedPartner.value) return []
+  return summary.value.planet_positions.filter(p => p.sign_code === selectedPartner.value!.zodiacCode)
 })
 
 // 生成個人化天象解讀
@@ -173,9 +182,9 @@ const personalizedInsight = computed(() => {
   }
 
   // 行星在對象星座
-  if (partnerPlanets.value.length > 0 && primaryPartner.value) {
+  if (partnerPlanets.value.length > 0 && selectedPartner.value) {
     const names = partnerPlanets.value.map(p => p.name_zh).join('、')
-    const zodiac = getPartnerZodiac(primaryPartner.value)?.name || ''
+    const zodiac = getPartnerZodiac(selectedPartner.value)?.name || ''
     insights.push(`${names}正經過${zodiac}，對方近期狀態活躍`)
   }
 
@@ -223,42 +232,47 @@ function getScoreStars(score: number): string {
           </ul>
 
           <!-- 配對分析 -->
-          <div v-if="primaryPartner && compatibility" class="compat-section">
-            <div class="compat-header">
-              <span class="zodiac-pair">
-                {{ myZodiac?.symbol }} &hearts; {{ getPartnerZodiac(primaryPartner)?.symbol }}
-              </span>
-              <span class="compat-score">{{ getScoreStars(compatibility.overall_score) }}</span>
-            </div>
+          <div v-if="profile.partners.length > 0" class="compat-section">
+            <!-- 對象選擇器 -->
+            <PartnerSelector v-model="selectedPartner" />
 
-            <p class="compat-name">
-              與{{ primaryPartner.nickname || getPartnerZodiac(primaryPartner)?.name }}的今日互動
-            </p>
+            <div v-if="selectedPartner && compatibility" class="compat-content">
+              <div class="compat-header">
+                <span class="zodiac-pair">
+                  {{ myZodiac?.symbol }} &hearts; {{ getPartnerZodiac(selectedPartner)?.symbol }}
+                </span>
+                <span class="compat-score">{{ getScoreStars(compatibility.overall_score) }}</span>
+              </div>
 
-            <div class="compat-details">
-              <span class="compat-aspect">{{ compatibility.aspect.name }}</span>
-              <span class="compat-element">
-                {{ elementNames[compatibility.element_compatibility.element1] }} &times;
-                {{ elementNames[compatibility.element_compatibility.element2] }}
-              </span>
-            </div>
-
-            <p class="compat-advice">{{ compatibility.advice }}</p>
-
-            <div v-if="compatibility.sky_influence.influences.length > 0" class="sky-notes">
-              <p v-for="(note, i) in compatibility.sky_influence.influences" :key="i" class="sky-note">
-                <sl-icon name="info-circle"></sl-icon>
-                {{ note }}
+              <p class="compat-name">
+                與{{ selectedPartner.nickname || getPartnerZodiac(selectedPartner)?.name }}的今日互動
               </p>
+
+              <div class="compat-details">
+                <span class="compat-aspect">{{ compatibility.aspect.name }}</span>
+                <span class="compat-element">
+                  {{ elementNames[compatibility.element_compatibility.element1] }} &times;
+                  {{ elementNames[compatibility.element_compatibility.element2] }}
+                </span>
+              </div>
+
+              <p class="compat-advice">{{ compatibility.advice }}</p>
+
+              <div v-if="compatibility.sky_influence.influences.length > 0" class="sky-notes">
+                <p v-for="(note, i) in compatibility.sky_influence.influences" :key="i" class="sky-note">
+                  <sl-icon name="info-circle"></sl-icon>
+                  {{ note }}
+                </p>
+              </div>
+            </div>
+
+            <div v-else-if="loadingCompat" class="loading-compat">
+              <sl-spinner></sl-spinner>
+              載入配對分析中...
             </div>
           </div>
 
-          <div v-else-if="loadingCompat" class="loading-compat">
-            <sl-spinner></sl-spinner>
-            載入配對分析中...
-          </div>
-
-          <div v-else-if="!primaryPartner" class="no-partner">
+          <div v-else class="no-partner">
             <router-link to="/profile" class="add-partner-link">
               <sl-icon name="plus-circle"></sl-icon>
               新增關注對象，查看配對分析
@@ -346,7 +360,7 @@ function getScoreStars(score: number): string {
                 'planet-card card',
                 {
                   'my-sign': planet.sign_code === profile.zodiacCode,
-                  'partner-sign': primaryPartner && planet.sign_code === primaryPartner.zodiacCode
+                  'partner-sign': selectedPartner && planet.sign_code === selectedPartner.zodiacCode
                 }
               ]"
             >
@@ -354,7 +368,7 @@ function getScoreStars(score: number): string {
               <div class="planet-sign">{{ planet.sign_name }}</div>
               <div class="planet-degree">{{ planet.degree.toFixed(1) }}°</div>
               <div v-if="planet.sign_code === profile.zodiacCode" class="planet-tag my">我</div>
-              <div v-else-if="primaryPartner && planet.sign_code === primaryPartner.zodiacCode" class="planet-tag partner">TA</div>
+              <div v-else-if="selectedPartner && planet.sign_code === selectedPartner.zodiacCode" class="planet-tag partner">TA</div>
             </div>
           </div>
         </section>
