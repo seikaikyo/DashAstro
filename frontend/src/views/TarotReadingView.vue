@@ -174,14 +174,7 @@ async function requestInterpretation() {
             </div>
 
             <div class="keywords">
-              <sl-tag
-                v-for="kw in getCard(drawn.card_id)?.keywords"
-                :key="kw"
-                variant="neutral"
-                size="small"
-              >
-                {{ kw }}
-              </sl-tag>
+              {{ getCard(drawn.card_id)?.keywords?.join(' · ') }}
             </div>
 
             <p class="meaning">
@@ -396,12 +389,8 @@ async function requestInterpretation() {
   gap: var(--space-2);
   flex-wrap: wrap;
   margin-bottom: var(--space-4);
-}
-
-.keywords sl-tag::part(base) {
-  background: var(--cosmos-night);
-  border: 1px solid var(--astral-medium);
-  color: var(--text-secondary);
+  color: var(--text-muted);
+  font-size: 0.9rem;
 }
 
 .meaning {
