@@ -151,10 +151,114 @@ async def get_relation_types():
                 "type": key,
                 "name": rel["name"],
                 "name_jp": rel.get("name_jp", rel["name"]),
+                "reading": rel.get("reading", ""),
                 "score": rel["score"],
                 "description": rel["description"],
-                "advice": rel["advice"]
+                "detailed": rel.get("detailed", ""),
+                "advice": rel["advice"],
+                "tips": rel.get("tips", []),
+                "avoid": rel.get("avoid", []),
+                "good_for": rel.get("good_for", [])
             }
             for key, rel in relations.items()
         ]
+    }
+
+
+@router.get("/elements")
+async def get_elements():
+    """
+    取得七曜元素說明
+
+    返回日、月、火、水、木、金、土七種元素的詳細資料。
+    """
+    elements = sukuyodo_service.elements_data
+
+    return {
+        "count": len(elements),
+        "elements": [
+            {
+                "name": name,
+                "reading": data.get("reading", ""),
+                "planet": data.get("planet", ""),
+                "traits": data.get("traits", ""),
+                "energy": data.get("energy", "")
+            }
+            for name, data in elements.items()
+        ]
+    }
+
+
+@router.get("/metadata")
+async def get_metadata():
+    """
+    取得宿曜道基本資訊
+
+    返回宿曜道的名稱、起源、創始者等元資料，含讀音標註。
+    """
+    return sukuyodo_service.metadata
+
+
+@router.get("/formula")
+async def get_formula_explanation():
+    """
+    取得計算公式說明
+
+    返回月宿傍通曆和三九秘法的詳細計算說明。
+    """
+    return {
+        "mansion_calculation": {
+            "name": "月宿傍通曆",
+            "reading": "げっしゅくぼうつうれき",
+            "description": "根據農曆月份和日期計算本命宿",
+            "steps": [
+                "步驟 1：將西曆生日轉換為農曆",
+                "步驟 2：查詢該月份的「起始宿」",
+                "步驟 3：起始宿 + (日期 - 1) mod 27 = 本命宿"
+            ],
+            "formula": "本命宿 = (月起始宿 + 日 - 1) mod 27",
+            "month_start_mansions": [
+                {"month": 1, "name": "正月", "start_mansion": "危宿", "index": 11},
+                {"month": 2, "name": "二月", "start_mansion": "壁宿", "index": 13},
+                {"month": 3, "name": "三月", "start_mansion": "婁宿", "index": 15},
+                {"month": 4, "name": "四月", "start_mansion": "昴宿", "index": 17},
+                {"month": 5, "name": "五月", "start_mansion": "觜宿", "index": 19},
+                {"month": 6, "name": "六月", "start_mansion": "井宿", "index": 21},
+                {"month": 7, "name": "七月", "start_mansion": "星宿", "index": 24},
+                {"month": 8, "name": "八月", "start_mansion": "角宿", "index": 0},
+                {"month": 9, "name": "九月", "start_mansion": "氐宿", "index": 2},
+                {"month": 10, "name": "十月", "start_mansion": "心宿", "index": 4},
+                {"month": 11, "name": "十一月", "start_mansion": "斗宿", "index": 7},
+                {"month": 12, "name": "十二月", "start_mansion": "女宿", "index": 9}
+            ]
+        },
+        "compatibility_calculation": {
+            "name": "三九秘法",
+            "reading": "さんくひほう",
+            "description": "根據兩人本命宿的距離判斷關係類型",
+            "steps": [
+                "步驟 1：計算兩人本命宿的索引差",
+                "步驟 2：取絕對值作為距離（0-13 範圍）",
+                "步驟 3：根據距離對照六種關係"
+            ],
+            "formula": "距離 = min(|宿A - 宿B|, 27 - |宿A - 宿B|)",
+            "distance_relations": [
+                {"distances": [0], "relation": "命", "reading": "めい"},
+                {"distances": [9, 18], "relation": "業胎", "reading": "ぎょうたい"},
+                {"distances": [1, 3, 10, 12, 15, 17, 24, 26], "relation": "栄親", "reading": "えいしん"},
+                {"distances": [2, 5, 11, 13, 14, 16, 22, 25], "relation": "友衰", "reading": "ゆうすい"},
+                {"distances": [4, 6, 21, 23], "relation": "安壊", "reading": "あんかい"},
+                {"distances": [7, 8, 19, 20], "relation": "危成", "reading": "きせい"}
+            ]
+        },
+        "element_bonus": {
+            "name": "元素相性",
+            "reading": "げんそそうしょう",
+            "description": "根據五行相生計算額外加成",
+            "rules": [
+                {"condition": "同元素", "bonus": 10},
+                {"condition": "相生（木→火→土→金→水→木）", "bonus": 5},
+                {"condition": "其他", "bonus": 0}
+            ]
+        }
     }
