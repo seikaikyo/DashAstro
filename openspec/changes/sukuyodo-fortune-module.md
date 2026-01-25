@@ -1,8 +1,9 @@
 ---
 title: 宿曜道運勢模組 - 日/週/月/年運勢
 type: feature
-status: planning
+status: in-progress
 created: 2025-01-25
+updated: 2026-01-25
 ---
 
 # 宿曜道運勢模組
@@ -266,25 +267,25 @@ FortuneView.vue
 
 ## Checklist
 
-### Phase 1（每日）
-- [ ] 建立七曜對照資料
-- [ ] 實作每日運勢計算
-- [ ] 新增 API 端點
+### Phase 1（每日）- 後端完成
+- [x] 建立七曜對照資料 (`sukuyodo_fortune.json`)
+- [x] 實作每日運勢計算 (`calculate_daily_fortune`)
+- [x] 新增 API 端點 (`/fortune/daily/{date}`)
 - [ ] 前端顯示今日運勢
 
-### Phase 2（每月）
-- [ ] 建立月宿對照資料
-- [ ] 實作月運勢計算（含週分解）
-- [ ] 新增 API 端點
+### Phase 2（每月）- 後端完成
+- [x] 建立月宿對照資料
+- [x] 實作月運勢計算（含週分解）
+- [x] 新增 API 端點 (`/fortune/monthly/{year}/{month}`)
 - [ ] 前端顯示本月運勢
 
-### Phase 3（每年）
-- [ ] 研究《宿曜經》流年神煞
-- [ ] 建立年運勢計算邏輯
-- [ ] 新增 API 端點
+### Phase 3（每年）- 後端完成
+- [x] 研究《宿曜經》流年神煞
+- [x] 建立年運勢計算邏輯（天干地支、犯太歲）
+- [x] 新增 API 端點 (`/fortune/yearly/{year}`)
 - [ ] 前端顯示本年運勢
 
-### Phase 4（UI）
+### Phase 4（UI）- 待開始
 - [ ] 運勢總覽卡片
 - [ ] 趨勢圖表
 - [ ] 幸運指南
