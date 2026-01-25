@@ -59,6 +59,27 @@ interface CompatibilityResult {
   advice: string
 }
 
+interface LuckyDay {
+  date: string
+  weekday: string
+  ganzhi: string
+  rokuyo: string
+  types: string[]
+  is_double_lucky: boolean
+}
+
+interface TodayLucky {
+  date: string
+  weekday: string
+  ganzhi: string
+  rokuyo: string
+  is_ichiryu_manbai: boolean
+  is_taian: boolean
+  lucky_types: string[]
+  is_double_lucky: boolean
+  description: string
+}
+
 const route = useRoute()
 const { profile, isProfileSet, primaryPartner, getPartnerZodiac } = useProfile()
 
@@ -75,6 +96,10 @@ const monthlyError = ref('')
 
 // 當前選擇的對象
 const selectedPartner = ref<Partner | null>(null)
+
+// 一粒萬倍日
+const todayLucky = ref<TodayLucky | null>(null)
+const monthLuckyDays = ref<LuckyDay[]>([])
 
 const apiUrl = import.meta.env.VITE_API_URL || 'https://dashastro-api.onrender.com'
 
@@ -110,6 +135,9 @@ onMounted(async () => {
   if (isMyZodiac.value && selectedPartner.value) {
     await loadCompatibility()
   }
+
+  // 載入吉日資訊
+  await loadLuckyDays()
 })
 
 // 監聽選擇的對象變化
@@ -139,6 +167,30 @@ async function loadCompatibility() {
     console.error('載入配對分析失敗')
   } finally {
     loadingCompat.value = false
+  }
+}
+
+async function loadLuckyDays() {
+  try {
+    // 同時載入今日吉凶和本月吉日
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = now.getMonth() + 1
+
+    const [todayRes, monthRes] = await Promise.all([
+      fetch(`${apiUrl}/api/lucky-days/today`),
+      fetch(`${apiUrl}/api/lucky-days/month/${year}/${month}?day_type=all`)
+    ])
+
+    if (todayRes.ok) {
+      todayLucky.value = await todayRes.json()
+    }
+    if (monthRes.ok) {
+      const data = await monthRes.json()
+      monthLuckyDays.value = data.days || []
+    }
+  } catch (e) {
+    console.error('載入吉日資料失敗', e)
   }
 }
 
@@ -188,6 +240,21 @@ const partnerZodiacSymbol = computed(() => {
   if (!primaryPartner.value) return ''
   return getPartnerZodiac(primaryPartner.value)?.symbol || ''
 })
+
+// 取得本週的吉日（從今天開始7天內）
+const weekLuckyDays = computed(() => {
+  const today = new Date()
+  const weekLater = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
+  return monthLuckyDays.value.filter(d => {
+    const date = new Date(d.date)
+    return date >= today && date <= weekLater
+  })
+})
+
+const formatLuckyDate = (dateStr: string, weekday: string) => {
+  const date = new Date(dateStr)
+  return `${date.getMonth() + 1}/${date.getDate()}(${weekday})`
+}
 
 const myZodiacSymbol = computed(() => {
   return ZODIAC_SIGNS.find(z => z.code === profile.value.zodiacCode)?.symbol || ''
@@ -318,6 +385,38 @@ const myZodiacSymbol = computed(() => {
                 <div v-if="horoscope.lucky_number" class="lucky-item">
                   <span class="lucky-label">幸運數字</span>
                   <span class="lucky-value">{{ horoscope.lucky_number }}</span>
+                </div>
+              </div>
+
+              <!-- 一粒萬倍日 -->
+              <div v-if="todayLucky || weekLuckyDays.length > 0" class="japanese-lucky">
+                <h3>東洋吉日</h3>
+
+                <!-- 今日吉凶 -->
+                <div v-if="todayLucky" class="today-lucky">
+                  <div class="today-lucky-header">
+                    <span class="today-ganzhi">{{ todayLucky.ganzhi }}</span>
+                    <span class="today-rokuyo" :class="todayLucky.rokuyo">{{ todayLucky.rokuyo }}</span>
+                    <span v-if="todayLucky.is_double_lucky" class="double-lucky-badge">雙重吉日</span>
+                    <span v-for="type in todayLucky.lucky_types" :key="type" class="lucky-type-badge">{{ type }}</span>
+                  </div>
+                  <p class="today-desc">{{ todayLucky.description }}</p>
+                </div>
+
+                <!-- 本週吉日預告 -->
+                <div v-if="weekLuckyDays.length > 0" class="week-lucky-days">
+                  <p class="week-lucky-title">本週吉日</p>
+                  <div class="lucky-day-list">
+                    <div
+                      v-for="day in weekLuckyDays"
+                      :key="day.date"
+                      class="lucky-day-item"
+                      :class="{ 'double-lucky': day.is_double_lucky }"
+                    >
+                      <span class="lucky-day-date">{{ formatLuckyDate(day.date, day.weekday) }}</span>
+                      <span class="lucky-day-types">{{ day.types.join(' + ') }}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </section>
@@ -697,5 +796,125 @@ const myZodiacSymbol = computed(() => {
 
 .setup-prompt .btn-gold {
   padding: var(--space-2) var(--space-5);
+}
+
+/* 東洋吉日 */
+.japanese-lucky {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.japanese-lucky h3 {
+  font-size: 1rem;
+  color: var(--stellar-gold);
+  margin-bottom: var(--space-4);
+}
+
+.today-lucky {
+  background: var(--cosmos-twilight);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.today-lucky-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-2);
+}
+
+.today-ganzhi {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.today-rokuyo {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.today-rokuyo.\u5927\u5B89 {
+  background: rgba(74, 155, 107, 0.2);
+  color: #4A9B6B;
+}
+
+.today-rokuyo.\u4F5B\u6EC5 {
+  background: rgba(155, 74, 90, 0.2);
+  color: #9B4A5A;
+}
+
+.today-rokuyo.\u53CB\u5F15,
+.today-rokuyo.\u5148\u52DD {
+  background: rgba(201, 168, 71, 0.2);
+  color: var(--stellar-gold);
+}
+
+.double-lucky-badge {
+  background: linear-gradient(135deg, var(--stellar-gold), var(--stellar-glow));
+  color: var(--cosmos-night);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.lucky-type-badge {
+  background: rgba(212, 175, 55, 0.15);
+  color: var(--stellar-gold);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+}
+
+.today-desc {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.week-lucky-days {
+  margin-top: var(--space-3);
+}
+
+.week-lucky-title {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+}
+
+.lucky-day-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.lucky-day-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--cosmos-twilight);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+}
+
+.lucky-day-item.double-lucky {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(232, 197, 71, 0.1));
+  border: 1px solid var(--border-gold);
+}
+
+.lucky-day-date {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.lucky-day-types {
+  color: var(--stellar-gold);
+  font-size: 0.8rem;
 }
 </style>
