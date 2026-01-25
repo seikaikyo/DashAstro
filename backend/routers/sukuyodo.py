@@ -458,3 +458,53 @@ async def get_formula_explanation():
             ]
         }
     }
+
+
+@router.get("/career-guidance/{date_str}")
+def get_career_guidance(
+    date_str: str,
+    session: Session = Depends(get_session)
+):
+    """
+    取得求職離職指引
+
+    根據西曆生日計算本命宿，提供：
+    - 適合的職業類型
+    - 未來 30 天的求職吉日
+    - 未來 30 天的離職吉日
+    - 需要避開的日期
+
+    Args:
+        date_str: 西曆生日，格式 YYYY-MM-DD
+    """
+    try:
+        birth_date = date.fromisoformat(date_str)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="日期格式錯誤，請使用 YYYY-MM-DD"
+        )
+
+    # 驗證日期範圍
+    today = date.today()
+    if birth_date > today:
+        raise HTTPException(
+            status_code=400,
+            detail="生日不可為未來日期"
+        )
+
+    if birth_date.year < 1900:
+        raise HTTPException(
+            status_code=400,
+            detail="僅支援 1900 年後的日期"
+        )
+
+    result = sukuyodo_service.get_career_guidance(birth_date)
+
+    # 記錄使用統計
+    stats_service.log_usage(session, Features.SUKUYODO_LOOKUP)
+
+    return {
+        "success": True,
+        "data": result
+    }

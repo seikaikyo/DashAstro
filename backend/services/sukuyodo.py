@@ -1030,6 +1030,205 @@ class SukuyodoService:
             "advice": advice
         }
 
+    # 職業類型資料
+    CAREER_BY_ELEMENT = {
+        "日": {
+            "categories": [
+                {"name": "領導管理", "jobs": ["企業主管", "專案經理", "創業家", "執行長"]},
+                {"name": "表演藝術", "jobs": ["演員", "導演", "主持人", "藝術家"]},
+                {"name": "公共事務", "jobs": ["政治人物", "公關", "發言人", "外交官"]}
+            ],
+            "traits": "天生領袖，喜歡站在舞台中央，適合需要魅力和決斷力的工作"
+        },
+        "月": {
+            "categories": [
+                {"name": "照護服務", "jobs": ["護理師", "社工", "心理諮商師", "幼教老師"]},
+                {"name": "藝術創作", "jobs": ["作家", "插畫家", "音樂家", "設計師"]},
+                {"name": "生活產業", "jobs": ["餐飲業", "旅遊業", "美容美髮", "花藝師"]}
+            ],
+            "traits": "富有同理心，善於照顧他人，適合需要細膩感受力的工作"
+        },
+        "火": {
+            "categories": [
+                {"name": "業務銷售", "jobs": ["業務主管", "行銷經理", "房仲", "保險業務"]},
+                {"name": "體能相關", "jobs": ["運動員", "教練", "軍警消防", "廚師"]},
+                {"name": "技術工程", "jobs": ["機械工程師", "電機工程師", "建築師", "技師"]}
+            ],
+            "traits": "行動力強，熱情積極，適合需要衝勁和執行力的工作"
+        },
+        "水": {
+            "categories": [
+                {"name": "研究分析", "jobs": ["研究員", "數據分析師", "市場調查員", "科學家"]},
+                {"name": "資訊科技", "jobs": ["軟體工程師", "系統分析師", "AI 工程師", "資安專家"]},
+                {"name": "金融財務", "jobs": ["投資分析師", "精算師", "財務顧問", "交易員"]}
+            ],
+            "traits": "思維靈活，善於分析，適合需要邏輯思考和應變能力的工作"
+        },
+        "木": {
+            "categories": [
+                {"name": "教育文化", "jobs": ["教師", "教授", "培訓講師", "圖書館員"]},
+                {"name": "法律媒體", "jobs": ["律師", "法官", "記者", "編輯"]},
+                {"name": "環保農業", "jobs": ["環保工程師", "農業專家", "園藝師", "獸醫"]}
+            ],
+            "traits": "正直仁慈，追求成長，適合需要知識傳承和正義感的工作"
+        },
+        "金": {
+            "categories": [
+                {"name": "金融會計", "jobs": ["會計師", "稽核員", "銀行家", "證券分析師"]},
+                {"name": "精密工業", "jobs": ["珠寶設計師", "精密機械師", "品管工程師", "鐘錶師"]},
+                {"name": "法務行政", "jobs": ["法務專員", "行政主管", "人資經理", "採購專員"]}
+            ],
+            "traits": "嚴謹細緻，重視規則，適合需要精準度和專業判斷的工作"
+        },
+        "土": {
+            "categories": [
+                {"name": "不動產", "jobs": ["建築師", "室內設計師", "不動產經紀", "土地開發"]},
+                {"name": "行政管理", "jobs": ["行政助理", "總務主管", "秘書", "辦公室經理"]},
+                {"name": "物流倉儲", "jobs": ["物流經理", "倉管人員", "供應鏈管理", "貨運業"]}
+            ],
+            "traits": "穩重可靠，腳踏實地，適合需要耐心和穩定性的工作"
+        }
+    }
+
+    def get_career_guidance(self, birth_date: date) -> dict:
+        """
+        取得求職離職指引
+
+        Args:
+            birth_date: 西曆生日
+
+        Returns:
+            職業建議和吉日列表
+        """
+        from datetime import timedelta
+
+        mansion = self.get_mansion(birth_date)
+        user_element = mansion["element"]
+        user_index = mansion["index"]
+
+        # 取得適合職業
+        career_data = self.CAREER_BY_ELEMENT.get(user_element, self.CAREER_BY_ELEMENT["土"])
+        suitable_careers = career_data["categories"]
+        career_traits = career_data["traits"]
+
+        # 計算未來 30 天的吉日
+        today = date.today()
+        job_seeking_days = []
+        resignation_days = []
+        avoid_days = []
+
+        fortune_data = self._load_fortune_data()
+
+        for i in range(30):
+            check_date = today + timedelta(days=i)
+
+            # 計算當日運勢分數
+            daily_fortune = self.calculate_daily_fortune(birth_date, check_date)
+            score = daily_fortune["fortune"]["overall"]
+
+            # 取得當日七曜元素
+            weekday = check_date.weekday()
+            day_element = fortune_data["weekday_elements"][str(weekday)]["element"]
+            day_name = fortune_data["weekday_elements"][str(weekday)]["name"]
+
+            # 計算當日宿
+            lunar_year, lunar_month, lunar_day, _ = self.solar_to_lunar(check_date)
+            day_mansion_index = self.get_mansion_index(lunar_month, lunar_day)
+
+            # 計算與本命宿的關係
+            relation = self.get_relation_type(user_index, day_mansion_index)
+            relation_type = relation["type"]
+
+            # 判斷求職吉日
+            is_job_seeking_lucky = False
+            job_reason = ""
+
+            if relation_type in ["榮親", "業胎"]:
+                is_job_seeking_lucky = True
+                job_reason = f"{relation['name']}日，貴人運旺"
+            elif day_element == user_element:
+                is_job_seeking_lucky = True
+                job_reason = f"{day_name}（{day_element}）同元素，能量充沛"
+            elif self._is_generating(day_element, user_element):
+                is_job_seeking_lucky = True
+                job_reason = f"{day_name}，元素相生，運勢順利"
+            elif score >= 75:
+                is_job_seeking_lucky = True
+                job_reason = f"運勢佳（{score}分），適合面試"
+
+            if is_job_seeking_lucky and len(job_seeking_days) < 5:
+                job_seeking_days.append({
+                    "date": check_date.isoformat(),
+                    "weekday": day_name,
+                    "score": score,
+                    "reason": job_reason
+                })
+
+            # 判斷離職吉日（月底、月初，運勢穩定）
+            is_resignation_ok = False
+            resign_reason = ""
+
+            if check_date.day <= 5 or check_date.day >= 25:
+                if score >= 65 and relation_type not in ["安壞", "危成"]:
+                    is_resignation_ok = True
+                    resign_reason = "月初/月底，運勢穩定" if score >= 70 else "運勢平穩，可行"
+
+            if is_resignation_ok and len(resignation_days) < 3:
+                resignation_days.append({
+                    "date": check_date.isoformat(),
+                    "weekday": day_name,
+                    "score": score,
+                    "reason": resign_reason
+                })
+
+            # 需避開的日子
+            if score < 50 or relation_type in ["安壞", "危成"]:
+                if len(avoid_days) < 5:
+                    avoid_reason = "運勢低迷" if score < 50 else f"{relation['name']}日，不宜重大決定"
+                    avoid_days.append({
+                        "date": check_date.isoformat(),
+                        "weekday": day_name,
+                        "score": score,
+                        "reason": avoid_reason
+                    })
+
+        return {
+            "your_mansion": {
+                "name_jp": mansion["name_jp"],
+                "reading": mansion["reading"],
+                "element": user_element
+            },
+            "suitable_careers": suitable_careers,
+            "career_traits": career_traits,
+            "lucky_days": {
+                "job_seeking": job_seeking_days,
+                "resignation": resignation_days
+            },
+            "avoid_days": avoid_days,
+            "general_advice": self._get_career_advice(user_element)
+        }
+
+    def _is_generating(self, elem1: str, elem2: str) -> bool:
+        """檢查是否為相生關係"""
+        GENERATING_PAIRS = [
+            ("木", "火"), ("火", "土"), ("土", "金"),
+            ("金", "水"), ("水", "木")
+        ]
+        return (elem1, elem2) in GENERATING_PAIRS or (elem2, elem1) in GENERATING_PAIRS
+
+    def _get_career_advice(self, element: str) -> str:
+        """取得職涯建議"""
+        advice_map = {
+            "日": "你天生具有領袖氣質，求職時展現自信和決斷力是你的優勢。面試時不妨主動分享你的願景和想法。",
+            "月": "你的同理心是最大優勢，求職時強調你的團隊合作和照顧他人的能力。選擇能發揮感性特質的工作會更快樂。",
+            "火": "你的行動力和熱情是賣點，面試時展現積極態度。選擇有挑戰性、能發揮執行力的工作最適合你。",
+            "水": "你的分析能力是強項，求職時準備充分的資料和數據。選擇需要思考和策略的工作能讓你發光。",
+            "木": "你正直且有理想，選擇符合你價值觀的工作很重要。教育、法律、環保等領域能讓你感到有意義。",
+            "金": "你嚴謹細緻，適合需要專業判斷的工作。面試時展現你的專業度和對細節的重視。",
+            "土": "你穩重可靠，是團隊的基石。選擇穩定的工作環境，發揮你踏實的特質。"
+        }
+        return advice_map.get(element, "發揮你的特質，找到適合的工作方向。")
+
 
 # 全域實例
 sukuyodo_service = SukuyodoService()
