@@ -107,7 +107,7 @@ class ClaudeAIService:
             print(f"[AI] 開始呼叫 Claude API，牌數: {len(cards)}")
             # 使用 Claude 3.5 Sonnet 作為主要模型
             response = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model="claude-sonnet-4-20250514",
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -179,7 +179,7 @@ class ClaudeAIService:
         try:
             # 使用 Claude 3.5 Sonnet 作為主要模型
             response = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model="claude-sonnet-4-20250514",
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}]
             )
