@@ -737,6 +737,142 @@ class SukuyodoService:
             "advice": f"本月為{relation['name']}月，{relation['advice']}"
         }
 
+    def calculate_weekly_fortune(self, birth_date: date, year: int, week: int) -> dict:
+        """
+        計算每週運勢
+
+        Args:
+            birth_date: 出生日期
+            year: 年份
+            week: ISO 週數 (1-53)
+
+        Returns:
+            每週運勢資料
+        """
+        import random
+        from datetime import timedelta
+
+        fortune_data = self._load_fortune_data()
+        mansion = self.get_mansion(birth_date)
+        user_index = mansion["index"]
+        user_element = mansion["element"]
+
+        # 計算該週的起始和結束日期
+        # ISO 週數：第 1 週包含該年第一個星期四
+        jan_4 = date(year, 1, 4)
+        start_of_week_1 = jan_4 - timedelta(days=jan_4.weekday())
+        week_start = start_of_week_1 + timedelta(weeks=week - 1)
+        week_end = week_start + timedelta(days=6)
+
+        # 取得該週的主宰七曜（以週一為準）
+        weekday = week_start.weekday()
+        jp_weekday = (weekday + 1) % 7
+        day_info = fortune_data["weekday_elements"].get(str(jp_weekday), {
+            "name": "月曜日", "reading": "げつようび", "element": "月", "planet": "月"
+        })
+        week_element = day_info["element"]
+
+        # 計算元素關係
+        relation_type, base_bonus = self._calc_fortune_element_relation(user_element, week_element)
+        relation_desc = fortune_data["element_relations"].get(
+            relation_type,
+            fortune_data["element_relations"]["neutral"]
+        )["description"]
+
+        # 基礎分數
+        base_score = 70 + base_bonus
+
+        # 計算各項運勢
+        random.seed(f"{birth_date.isoformat()}{year}week{week}")
+
+        def calc_weekly_category(category: str) -> int:
+            cat_data = fortune_data["fortune_categories"][category]
+            cat_bonus = 6 if user_element in cat_data["favorable_elements"] else 0
+            week_bonus = 4 if week_element in cat_data["favorable_elements"] else 0
+            variation = random.randint(-10, 10)
+            return max(30, min(100, base_score + cat_bonus + week_bonus + variation))
+
+        overall_score = max(30, min(100, base_score))
+        career_score = calc_weekly_category("career")
+        love_score = calc_weekly_category("love")
+        health_score = calc_weekly_category("health")
+        wealth_score = calc_weekly_category("wealth")
+
+        # 計算每日運勢概覽
+        daily_overview = []
+        for day_offset in range(7):
+            day_date = week_start + timedelta(days=day_offset)
+            day_weekday = (day_date.weekday() + 1) % 7
+            day_element_info = fortune_data["weekday_elements"].get(str(day_weekday), {})
+            day_element = day_element_info.get("element", "土")
+
+            _, day_bonus = self._calc_fortune_element_relation(user_element, day_element)
+            day_score = max(40, min(100, 70 + day_bonus + random.randint(-8, 8)))
+
+            daily_overview.append({
+                "date": day_date.isoformat(),
+                "weekday": day_element_info.get("name", ""),
+                "score": day_score
+            })
+
+        # 選擇建議
+        if overall_score >= 85:
+            advice_list = fortune_data["daily_advice"]["excellent"]
+        elif overall_score >= 70:
+            advice_list = fortune_data["daily_advice"]["good"]
+        elif overall_score >= 55:
+            advice_list = fortune_data["daily_advice"]["neutral"]
+        elif overall_score >= 40:
+            advice_list = fortune_data["daily_advice"]["caution"]
+        else:
+            advice_list = fortune_data["daily_advice"]["challenging"]
+
+        advice = random.choice(advice_list)
+
+        # 幸運物品
+        lucky = fortune_data["lucky_items"]
+        lucky_direction = lucky["directions"].get(week_element, lucky["directions"]["土"])
+        lucky_color = lucky["colors"].get(week_element, lucky["colors"]["土"])
+
+        return {
+            "year": year,
+            "week": week,
+            "week_start": week_start.isoformat(),
+            "week_end": week_end.isoformat(),
+            "week_element": {
+                "name": day_info["name"],
+                "reading": day_info["reading"],
+                "element": week_element,
+                "planet": day_info["planet"]
+            },
+            "your_mansion": {
+                "name_jp": mansion["name_jp"],
+                "reading": mansion["reading"],
+                "element": user_element,
+                "index": user_index
+            },
+            "element_relation": {
+                "type": relation_type,
+                "description": relation_desc
+            },
+            "fortune": {
+                "overall": overall_score,
+                "career": career_score,
+                "love": love_score,
+                "health": health_score,
+                "wealth": wealth_score
+            },
+            "daily_overview": daily_overview,
+            "advice": advice,
+            "lucky": {
+                "direction": lucky_direction["direction"],
+                "direction_reading": lucky_direction["reading"],
+                "color": lucky_color["color"],
+                "color_reading": lucky_color["reading"],
+                "color_hex": lucky_color["hex"]
+            }
+        }
+
     def calculate_yearly_fortune(self, birth_date: date, year: int) -> dict:
         """
         計算每年運勢
@@ -793,15 +929,10 @@ class SukuyodoService:
         # 檢查是否犯太歲
         warnings = []
         mansion_range = zodiac_data.get("mansion_range", [])
+        tai_sui_penalty = 0
         if user_index in mansion_range:
-            warnings.append({
-                "type": "tai_sui",
-                "name": "犯太歲",
-                "reading": "はんたいさい",
-                "description": f"本命宿與{zodiac_data['name']}年太歲相沖，需要特別注意",
-                "advice": "宜安太歲、多行善事、保持低調"
-            })
-            base_score = max(50, base_score - 10)
+            warnings.append("本命宿與太歲相沖，重大決策宜謹慎，可透過行善積德化解")
+            tai_sui_penalty = 10
 
         # 計算每月趨勢
         random.seed(f"{birth_date.isoformat()}{year}")
@@ -816,10 +947,35 @@ class SukuyodoService:
         # 找出機會月份（分數最高的 3 個月）
         sorted_months = sorted(monthly_trend, key=lambda x: x["score"], reverse=True)
         opportunities = []
+        opportunity_details = {
+            "人際": "拓展人脈、參加社交活動，可能遇到貴人相助",
+            "學習": "進修充電、考取證照、閱讀學習新技能",
+            "規劃": "制定年度目標、整理思緒、規劃未來方向",
+            "行動": "積極推動計畫、主動爭取機會、大膽嘗試新事物",
+            "儲蓄": "理財規劃、開源節流、建立被動收入",
+            "休息": "調養身心、沉澱思考、為下半年養精蓄銳",
+            "收穫": "驗收成果、完成專案、迎接豐盛回報",
+            "轉變": "接受改變、調整策略、把握轉機",
+            "穩定": "維持現狀、鞏固基礎、避免大幅變動",
+            "創新": "開發新專案、嘗試新想法、突破舊框架",
+            "總結": "回顧反省、整理資源、為明年做準備",
+            "發展": "穩步前進、累積實力、把握成長機會"
+        }
         for m in sorted_months[:3]:
             month_name = f"{m['month']}月"
             theme = fortune_data["monthly_themes"].get(str(m["month"]), {})
-            opportunities.append(f"{month_name}適合{theme.get('focus', '發展')}")
+            focus = theme.get("focus", "發展")
+            detail = opportunity_details.get(focus, "把握機會積極行動")
+            opportunities.append(f"{month_name}（運勢分數 {m['score']}）：{detail}")
+
+        # 找出需注意的月份（分數最低的）
+        worst_months = sorted(monthly_trend, key=lambda x: x["score"])[:2]
+        for wm in worst_months:
+            if wm["score"] < 55:
+                warnings.append(f"{wm['month']}月運勢較低（{wm['score']}分），避免重大投資或簽約")
+
+        # 應用犯太歲減分
+        base_score = max(50, base_score - tai_sui_penalty)
 
         # 各項運勢
         random.seed(f"{birth_date.isoformat()}{year}categories")

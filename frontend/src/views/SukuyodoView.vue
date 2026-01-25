@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useProfile, ZODIAC_SIGNS } from '../stores/profile'
+import CollapsibleCard from '../components/CollapsibleCard.vue'
 
 const { profile, myBirthDate, partnersWithBirthDate } = useProfile()
 
@@ -226,6 +227,43 @@ interface YearlyFortune {
   advice: string
 }
 
+interface WeeklyFortune {
+  year: number
+  week: number
+  week_start: string
+  week_end: string
+  week_element: {
+    name: string
+    reading: string
+    element: string
+    planet: string
+  }
+  your_mansion: {
+    name_jp: string
+    reading: string
+    element: string
+    index: number
+  }
+  element_relation: {
+    type: string
+    description: string
+  }
+  fortune: FortuneScores
+  daily_overview: {
+    date: string
+    weekday: string
+    score: number
+  }[]
+  advice: string
+  lucky: {
+    direction: string
+    direction_reading: string
+    color: string
+    color_reading: string
+    color_hex: string
+  }
+}
+
 const apiUrl = import.meta.env.VITE_API_URL || 'https://dashastro-api.onrender.com'
 
 // 本命宿查詢
@@ -233,7 +271,6 @@ const birthDate = ref('')
 const mansion = ref<Mansion | null>(null)
 const lookupLoading = ref(false)
 const lookupError = ref('')
-const showDetails = ref(false)
 
 // 相性診斷
 const date1 = ref('')
@@ -241,7 +278,6 @@ const date2 = ref('')
 const compatibility = ref<CompatibilityResult | null>(null)
 const compatLoading = ref(false)
 const compatError = ref('')
-const showCompatDetails = ref(false)
 
 // 元資料
 const metadata = ref<Metadata | null>(null)
@@ -255,8 +291,8 @@ const finderLoading = ref(false)
 const selectedMansion = ref<CompatibleMansion | null>(null)
 
 // 運勢查詢
-const fortuneTab = ref<'daily' | 'monthly' | 'yearly'>('daily')
 const dailyFortune = ref<DailyFortune | null>(null)
+const weeklyFortune = ref<WeeklyFortune | null>(null)
 const monthlyFortune = ref<MonthlyFortune | null>(null)
 const yearlyFortune = ref<YearlyFortune | null>(null)
 const fortuneLoading = ref(false)
@@ -298,6 +334,7 @@ const lookupMansion = async () => {
   compatFinder.value = null
   selectedMansion.value = null
   dailyFortune.value = null
+  weeklyFortune.value = null
   monthlyFortune.value = null
   yearlyFortune.value = null
 
@@ -365,6 +402,31 @@ const fetchDailyFortune = async () => {
   }
 }
 
+const fetchWeeklyFortune = async () => {
+  if (!birthDate.value) return
+  fortuneLoading.value = true
+
+  const now = new Date()
+  // 計算 ISO 週數
+  const jan4 = new Date(now.getFullYear(), 0, 4)
+  const daysSinceJan4 = Math.floor((now.getTime() - jan4.getTime()) / 86400000)
+  const week = Math.ceil((daysSinceJan4 + jan4.getDay() + 1) / 7)
+
+  try {
+    const res = await fetch(`${apiUrl}/api/sukuyodo/fortune/weekly/${now.getFullYear()}/${week}?birth_date=${birthDate.value}`)
+    if (res.ok) {
+      const data = await res.json()
+      if (data.success) {
+        weeklyFortune.value = data.data
+      }
+    }
+  } catch (e) {
+    console.error('Failed to fetch weekly fortune')
+  } finally {
+    fortuneLoading.value = false
+  }
+}
+
 const fetchMonthlyFortune = async () => {
   if (!birthDate.value) return
   fortuneLoading.value = true
@@ -408,6 +470,7 @@ const fetchYearlyFortune = async () => {
 const fetchAllFortunes = async () => {
   await Promise.all([
     fetchDailyFortune(),
+    fetchWeeklyFortune(),
     fetchMonthlyFortune(),
     fetchYearlyFortune()
   ])
@@ -532,17 +595,20 @@ const getScoreLevel = (score: number) => {
         </div>
       </section>
 
-      <!-- 結果區域 - PC版左右分欄 -->
-      <div v-if="mansion" class="results-layout">
-        <!-- 左側：本命宿結果 -->
-        <section class="mansion-section card">
-          <div class="mansion-result">
-            <div class="mansion-header" :style="{ '--element-color': mansionElementColor }">
-              <div class="mansion-name-group">
-                <ruby class="mansion-name">
-                  {{ mansion.name_jp }}<rp>(</rp><rt>{{ mansion.reading }}</rt><rp>)</rp>
-                </ruby>
-              </div>
+      <!-- 結果區域 - 摺疊卡片式 -->
+      <div v-if="mansion" class="results-cards">
+        <!-- 本命宿卡片 - 預設展開 -->
+        <CollapsibleCard
+          :title="`本命宿：${mansion.name_jp}（${mansion.element}）`"
+          :subtitle="mansion.lunar_date?.display"
+          icon="star-fill"
+          :default-open="true"
+        >
+          <div class="mansion-content">
+            <div class="mansion-header-info" :style="{ '--element-color': mansionElementColor }">
+              <ruby class="mansion-name-large">
+                {{ mansion.name_jp }}<rp>(</rp><rt>{{ mansion.reading }}</rt><rp>)</rp>
+              </ruby>
               <span class="mansion-element">{{ mansion.element }}</span>
             </div>
 
@@ -560,15 +626,7 @@ const getScoreLevel = (score: number) => {
 
             <p class="mansion-personality">{{ mansion.personality }}</p>
 
-            <button
-              class="toggle-details"
-              @click="showDetails = !showDetails"
-            >
-              {{ showDetails ? '收起詳情' : '查看詳情' }}
-              <sl-icon :name="showDetails ? 'chevron-up' : 'chevron-down'"></sl-icon>
-            </button>
-
-            <div v-if="showDetails" class="mansion-details">
+            <div class="mansion-details-grid">
               <div class="detail-item">
                 <h4>感情運</h4>
                 <p>{{ mansion.love }}</p>
@@ -583,521 +641,552 @@ const getScoreLevel = (score: number) => {
               </div>
             </div>
           </div>
-        </section>
+        </CollapsibleCard>
 
-        <!-- 右側：相性配對查詢結果 -->
-        <section v-if="compatFinder" class="compat-finder-section card">
-            <h3 class="finder-title">尋找你的最佳配對</h3>
-
-            <!-- 最適合結婚 -->
-            <div class="finder-category marriage">
-              <div class="category-header">
-                <span class="category-icon">&#128141;</span>
-                <ruby class="category-name">
-                  {{ compatFinder.best_for_marriage.relation }}<rp>(</rp><rt>{{ compatFinder.best_for_marriage.reading }}</rt><rp>)</rp>
-                </ruby>
-                <span class="category-score">{{ compatFinder.best_for_marriage.score }} 分</span>
-              </div>
-              <p class="category-desc">{{ compatFinder.best_for_marriage.description }}</p>
-              <div class="mansion-grid">
-                <button
-                  v-for="m in compatFinder.best_for_marriage.mansions"
-                  :key="m.index"
-                  class="mansion-chip"
-                  :class="{ active: selectedMansion?.index === m.index }"
-                  @click="selectedMansion = selectedMansion?.index === m.index ? null : m"
-                >
-                  <ruby>{{ m.name_jp }}<rp>(</rp><rt>{{ m.reading }}</rt><rp>)</rp></ruby>
-                  <span class="chip-element" :style="{ color: elementColors[m.element] }">{{ m.element }}</span>
-                </button>
-              </div>
+        <!-- 尋找配對卡片 -->
+        <CollapsibleCard
+          v-if="compatFinder"
+          title="尋找最佳配對"
+          subtitle="點擊星宿查看詳情"
+          icon="heart-fill"
+          :default-open="false"
+        >
+          <div class="compat-finder-content">
+            <div v-if="finderLoading" class="finder-loading">
+              <sl-spinner></sl-spinner>
+              <span>載入中...</span>
             </div>
+            <template v-else>
+              <!-- 最適合結婚 -->
+              <div class="finder-category marriage">
+                <div class="category-header">
+                  <ruby class="category-name">
+                    {{ compatFinder.best_for_marriage.relation }}<rp>(</rp><rt>{{ compatFinder.best_for_marriage.reading }}</rt><rp>)</rp>
+                  </ruby>
+                  <span class="category-score excellent">{{ compatFinder.best_for_marriage.score }} 分</span>
+                </div>
+                <p class="category-desc">{{ compatFinder.best_for_marriage.description }}</p>
+                <div class="mansion-grid">
+                  <button
+                    v-for="m in compatFinder.best_for_marriage.mansions"
+                    :key="m.index"
+                    class="mansion-chip"
+                    :class="{ active: selectedMansion?.index === m.index }"
+                    @click="selectedMansion = selectedMansion?.index === m.index ? null : m"
+                  >
+                    <ruby>{{ m.name_jp }}<rp>(</rp><rt>{{ m.reading }}</rt><rp>)</rp></ruby>
+                    <span class="chip-element" :style="{ color: elementColors[m.element] }">{{ m.element }}</span>
+                  </button>
+                </div>
+              </div>
 
-            <!-- 前世之緣 -->
-            <div class="finder-category past-life">
-              <div class="category-header">
-                <span class="category-icon">&#128302;</span>
-                <ruby class="category-name">
-                  {{ compatFinder.past_life_connection.relation }}<rp>(</rp><rt>{{ compatFinder.past_life_connection.reading }}</rt><rp>)</rp>
-                </ruby>
-                <span class="category-score">{{ compatFinder.past_life_connection.score }} 分</span>
+              <!-- 前世之緣 -->
+              <div class="finder-category past-life">
+                <div class="category-header">
+                  <ruby class="category-name">
+                    {{ compatFinder.past_life_connection.relation }}<rp>(</rp><rt>{{ compatFinder.past_life_connection.reading }}</rt><rp>)</rp>
+                  </ruby>
+                  <span class="category-score good">{{ compatFinder.past_life_connection.score }} 分</span>
+                </div>
+                <p class="category-desc">{{ compatFinder.past_life_connection.description }}</p>
+                <div class="mansion-grid">
+                  <button
+                    v-for="m in compatFinder.past_life_connection.mansions"
+                    :key="m.index"
+                    class="mansion-chip"
+                    :class="{ active: selectedMansion?.index === m.index }"
+                    @click="selectedMansion = selectedMansion?.index === m.index ? null : m"
+                  >
+                    <ruby>{{ m.name_jp }}<rp>(</rp><rt>{{ m.reading }}</rt><rp>)</rp></ruby>
+                    <span class="chip-element" :style="{ color: elementColors[m.element] }">{{ m.element }}</span>
+                  </button>
+                </div>
               </div>
-              <p class="category-desc">{{ compatFinder.past_life_connection.description }}</p>
-              <div class="mansion-grid">
-                <button
-                  v-for="m in compatFinder.past_life_connection.mansions"
-                  :key="m.index"
-                  class="mansion-chip"
-                  :class="{ active: selectedMansion?.index === m.index }"
-                  @click="selectedMansion = selectedMansion?.index === m.index ? null : m"
-                >
-                  <ruby>{{ m.name_jp }}<rp>(</rp><rt>{{ m.reading }}</rt><rp>)</rp></ruby>
-                  <span class="chip-element" :style="{ color: elementColors[m.element] }">{{ m.element }}</span>
-                </button>
-              </div>
-            </div>
 
-            <!-- 需要避免 -->
-            <div class="finder-category avoid">
-              <div class="category-header">
-                <span class="category-icon">&#9888;</span>
-                <ruby class="category-name">
-                  {{ compatFinder.should_avoid.relation }}<rp>(</rp><rt>{{ compatFinder.should_avoid.reading }}</rt><rp>)</rp>
-                </ruby>
-                <span class="category-score warning">{{ compatFinder.should_avoid.score }} 分</span>
+              <!-- 需要避免 -->
+              <div class="finder-category avoid">
+                <div class="category-header">
+                  <ruby class="category-name">
+                    {{ compatFinder.should_avoid.relation }}<rp>(</rp><rt>{{ compatFinder.should_avoid.reading }}</rt><rp>)</rp>
+                  </ruby>
+                  <span class="category-score warning">{{ compatFinder.should_avoid.score }} 分</span>
+                </div>
+                <p class="category-desc">{{ compatFinder.should_avoid.description }}</p>
+                <div class="mansion-grid">
+                  <button
+                    v-for="m in compatFinder.should_avoid.mansions"
+                    :key="m.index"
+                    class="mansion-chip danger"
+                    :class="{ active: selectedMansion?.index === m.index }"
+                    @click="selectedMansion = selectedMansion?.index === m.index ? null : m"
+                  >
+                    <ruby>{{ m.name_jp }}<rp>(</rp><rt>{{ m.reading }}</rt><rp>)</rp></ruby>
+                    <span class="chip-element" :style="{ color: elementColors[m.element] }">{{ m.element }}</span>
+                  </button>
+                </div>
               </div>
-              <p class="category-desc">{{ compatFinder.should_avoid.description }}</p>
-              <div class="mansion-grid">
-                <button
-                  v-for="m in compatFinder.should_avoid.mansions"
-                  :key="m.index"
-                  class="mansion-chip danger"
-                  :class="{ active: selectedMansion?.index === m.index }"
-                  @click="selectedMansion = selectedMansion?.index === m.index ? null : m"
-                >
-                  <ruby>{{ m.name_jp }}<rp>(</rp><rt>{{ m.reading }}</rt><rp>)</rp></ruby>
-                  <span class="chip-element" :style="{ color: elementColors[m.element] }">{{ m.element }}</span>
-                </button>
-              </div>
-            </div>
 
-            <!-- 選中的宿位詳細資訊 -->
-            <div v-if="selectedMansion" class="selected-mansion-detail">
-              <div class="detail-header">
-                <ruby class="detail-name">
-                  {{ selectedMansion.name_jp }}<rp>(</rp><rt>{{ selectedMansion.reading }}</rt><rp>)</rp>
+              <!-- 選中的宿位詳細資訊 -->
+              <div v-if="selectedMansion" class="selected-mansion-detail">
+                <div class="detail-header">
+                  <ruby class="detail-name">
+                    {{ selectedMansion.name_jp }}<rp>(</rp><rt>{{ selectedMansion.reading }}</rt><rp>)</rp>
+                  </ruby>
+                  <span class="detail-element" :style="{ borderColor: elementColors[selectedMansion.element], color: elementColors[selectedMansion.element] }">
+                    {{ selectedMansion.element }}
+                  </span>
+                </div>
+                <div class="detail-keywords">
+                  <span v-for="kw in selectedMansion.keywords" :key="kw" class="keyword-tag">{{ kw }}</span>
+                </div>
+                <p class="detail-personality">{{ selectedMansion.personality }}</p>
+
+                <!-- 農曆生日對照 -->
+                <div v-if="selectedMansion.lunar_dates?.length" class="lunar-dates-section">
+                  <h5>對應農曆生日</h5>
+                  <p class="lunar-dates-hint">找這些日期生的人就對了</p>
+                  <div class="lunar-dates-grid">
+                    <span
+                      v-for="ld in selectedMansion.lunar_dates"
+                      :key="ld.lunar_month"
+                      class="lunar-date-chip"
+                    >{{ ld.display }}</span>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </CollapsibleCard>
+
+        <!-- 今日運勢卡片 -->
+        <CollapsibleCard
+          v-if="dailyFortune"
+          title="今日運勢"
+          :subtitle="dailyFortune.date"
+          icon="sun-fill"
+          :badge="`${dailyFortune.fortune.overall} ${getFortuneLevel(dailyFortune.fortune.overall).text}`"
+          :badge-class="getFortuneLevel(dailyFortune.fortune.overall).class"
+          :default-open="false"
+        >
+          <div class="fortune-content">
+            <div class="fortune-header">
+              <div class="fortune-date">
+                <ruby class="weekday">
+                  {{ dailyFortune.weekday.name }}<rp>(</rp><rt>{{ dailyFortune.weekday.reading }}</rt><rp>)</rp>
                 </ruby>
-                <span class="detail-element" :style="{ borderColor: elementColors[selectedMansion.element], color: elementColors[selectedMansion.element] }">
-                  {{ selectedMansion.element }}
+              </div>
+              <div class="element-match">
+                <span class="match-label">元素：</span>
+                <span class="match-value" :style="{ color: elementColors[dailyFortune.weekday.element] }">
+                  {{ dailyFortune.weekday.element }}
                 </span>
+                <span class="match-desc">{{ dailyFortune.element_relation.description }}</span>
               </div>
-              <div class="detail-keywords">
-                <span v-for="kw in selectedMansion.keywords" :key="kw" class="keyword-tag">{{ kw }}</span>
-              </div>
-              <p class="detail-personality">{{ selectedMansion.personality }}</p>
+            </div>
 
-              <!-- 農曆生日對照 -->
-              <div v-if="selectedMansion.lunar_dates?.length" class="lunar-dates-section">
-                <h5>對應農曆生日</h5>
-                <p class="lunar-dates-hint">找這些日期生的人就對了！</p>
-                <div class="lunar-dates-grid">
-                  <span
-                    v-for="ld in selectedMansion.lunar_dates"
-                    :key="ld.lunar_month"
-                    class="lunar-date-chip"
-                  >{{ ld.display }}</span>
+            <div class="fortune-overall" :class="getFortuneLevel(dailyFortune.fortune.overall).class">
+              <span class="overall-score">{{ dailyFortune.fortune.overall }}</span>
+              <span class="overall-label">{{ getFortuneLevel(dailyFortune.fortune.overall).text }}</span>
+            </div>
+
+            <div class="fortune-grid">
+              <div class="fortune-item">
+                <span class="fortune-name">事業</span>
+                <div class="fortune-bar"><div class="bar-fill" :style="{ width: dailyFortune.fortune.career + '%' }"></div></div>
+                <span class="fortune-value">{{ dailyFortune.fortune.career }}</span>
+              </div>
+              <div class="fortune-item">
+                <span class="fortune-name">感情</span>
+                <div class="fortune-bar"><div class="bar-fill" :style="{ width: dailyFortune.fortune.love + '%' }"></div></div>
+                <span class="fortune-value">{{ dailyFortune.fortune.love }}</span>
+              </div>
+              <div class="fortune-item">
+                <span class="fortune-name">健康</span>
+                <div class="fortune-bar"><div class="bar-fill" :style="{ width: dailyFortune.fortune.health + '%' }"></div></div>
+                <span class="fortune-value">{{ dailyFortune.fortune.health }}</span>
+              </div>
+              <div class="fortune-item">
+                <span class="fortune-name">財運</span>
+                <div class="fortune-bar"><div class="bar-fill" :style="{ width: dailyFortune.fortune.wealth + '%' }"></div></div>
+                <span class="fortune-value">{{ dailyFortune.fortune.wealth }}</span>
+              </div>
+            </div>
+
+            <p class="fortune-advice">{{ dailyFortune.advice }}</p>
+
+            <div class="lucky-items">
+              <h4>幸運指南</h4>
+              <div class="lucky-grid">
+                <div class="lucky-item">
+                  <span class="lucky-label">方位</span>
+                  <ruby class="lucky-value">{{ dailyFortune.lucky.direction }}<rp>(</rp><rt>{{ dailyFortune.lucky.direction_reading }}</rt><rp>)</rp></ruby>
+                </div>
+                <div class="lucky-item">
+                  <span class="lucky-label">顏色</span>
+                  <span class="lucky-value"><span class="color-dot" :style="{ background: dailyFortune.lucky.color_hex }"></span>{{ dailyFortune.lucky.color }}</span>
+                </div>
+                <div class="lucky-item">
+                  <span class="lucky-label">數字</span>
+                  <span class="lucky-value">{{ dailyFortune.lucky.numbers.join(', ') }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CollapsibleCard>
+
+        <!-- 本週運勢卡片 -->
+        <CollapsibleCard
+          v-if="weeklyFortune"
+          title="本週運勢"
+          :subtitle="`${weeklyFortune.week_start} ~ ${weeklyFortune.week_end}`"
+          icon="calendar-week-fill"
+          :badge="`${weeklyFortune.fortune.overall} ${getFortuneLevel(weeklyFortune.fortune.overall).text}`"
+          :badge-class="getFortuneLevel(weeklyFortune.fortune.overall).class"
+          :default-open="false"
+        >
+          <div class="fortune-content">
+            <div class="fortune-header">
+              <div class="fortune-date">
+                <span class="week-num-label">第 {{ weeklyFortune.week }} 週</span>
+              </div>
+              <div class="element-match">
+                <span class="match-label">週主宰：</span>
+                <span class="match-value" :style="{ color: elementColors[weeklyFortune.week_element.element] }">
+                  {{ weeklyFortune.week_element.element }}
+                </span>
+                <span class="match-desc">{{ weeklyFortune.element_relation.description }}</span>
+              </div>
+            </div>
+
+            <div class="fortune-overall" :class="getFortuneLevel(weeklyFortune.fortune.overall).class">
+              <span class="overall-score">{{ weeklyFortune.fortune.overall }}</span>
+              <span class="overall-label">{{ getFortuneLevel(weeklyFortune.fortune.overall).text }}</span>
+            </div>
+
+            <div class="fortune-grid">
+              <div class="fortune-item">
+                <span class="fortune-name">事業</span>
+                <div class="fortune-bar"><div class="bar-fill" :style="{ width: weeklyFortune.fortune.career + '%' }"></div></div>
+                <span class="fortune-value">{{ weeklyFortune.fortune.career }}</span>
+              </div>
+              <div class="fortune-item">
+                <span class="fortune-name">感情</span>
+                <div class="fortune-bar"><div class="bar-fill" :style="{ width: weeklyFortune.fortune.love + '%' }"></div></div>
+                <span class="fortune-value">{{ weeklyFortune.fortune.love }}</span>
+              </div>
+              <div class="fortune-item">
+                <span class="fortune-name">健康</span>
+                <div class="fortune-bar"><div class="bar-fill" :style="{ width: weeklyFortune.fortune.health + '%' }"></div></div>
+                <span class="fortune-value">{{ weeklyFortune.fortune.health }}</span>
+              </div>
+              <div class="fortune-item">
+                <span class="fortune-name">財運</span>
+                <div class="fortune-bar"><div class="bar-fill" :style="{ width: weeklyFortune.fortune.wealth + '%' }"></div></div>
+                <span class="fortune-value">{{ weeklyFortune.fortune.wealth }}</span>
+              </div>
+            </div>
+
+            <div class="daily-overview">
+              <h4>每日概況</h4>
+              <div class="daily-grid">
+                <div v-for="d in weeklyFortune.daily_overview" :key="d.date" class="daily-item">
+                  <span class="day-weekday">{{ d.weekday }}</span>
+                  <span class="day-score" :class="getFortuneLevel(d.score).class">{{ d.score }}</span>
                 </div>
               </div>
             </div>
 
-          <div v-if="finderLoading" class="finder-loading">
-            <sl-spinner></sl-spinner>
-            <span>載入中...</span>
-          </div>
-        </section>
-      </div>
+            <p class="fortune-advice">{{ weeklyFortune.advice }}</p>
 
-      <!-- 運勢區塊 -->
-      <section v-if="mansion && (dailyFortune || monthlyFortune || yearlyFortune)" class="fortune-section card card-gold">
-        <h2 class="section-title">
-          <ruby>運勢<rp>(</rp><rt>うんせい</rt><rp>)</rp></ruby>預測
-        </h2>
-
-        <!-- Tab 切換 -->
-        <div class="fortune-tabs">
-          <button
-            class="tab-btn"
-            :class="{ active: fortuneTab === 'daily' }"
-            @click="fortuneTab = 'daily'"
-          >今日</button>
-          <button
-            class="tab-btn"
-            :class="{ active: fortuneTab === 'monthly' }"
-            @click="fortuneTab = 'monthly'"
-          >本月</button>
-          <button
-            class="tab-btn"
-            :class="{ active: fortuneTab === 'yearly' }"
-            @click="fortuneTab = 'yearly'"
-          >本年</button>
-        </div>
-
-        <div v-if="fortuneLoading" class="fortune-loading">
-          <sl-spinner></sl-spinner>
-          <span>載入運勢中...</span>
-        </div>
-
-        <!-- 今日運勢 -->
-        <div v-else-if="fortuneTab === 'daily' && dailyFortune" class="fortune-content daily">
-          <div class="fortune-header">
-            <div class="fortune-date">
-              <span class="date-label">{{ dailyFortune.date }}</span>
-              <ruby class="weekday">
-                {{ dailyFortune.weekday.name }}<rp>(</rp><rt>{{ dailyFortune.weekday.reading }}</rt><rp>)</rp>
-              </ruby>
-            </div>
-            <div class="element-match">
-              <span class="match-label">元素：</span>
-              <span class="match-value" :style="{ color: elementColors[dailyFortune.weekday.element] }">
-                {{ dailyFortune.weekday.element }}
-              </span>
-              <span class="match-desc">{{ dailyFortune.element_relation.description }}</span>
-            </div>
-          </div>
-
-          <div class="fortune-overall" :class="getFortuneLevel(dailyFortune.fortune.overall).class">
-            <span class="overall-score">{{ dailyFortune.fortune.overall }}</span>
-            <span class="overall-label">{{ getFortuneLevel(dailyFortune.fortune.overall).text }}</span>
-          </div>
-
-          <div class="fortune-grid">
-            <div class="fortune-item">
-              <span class="fortune-icon">&#128188;</span>
-              <span class="fortune-name">事業</span>
-              <div class="fortune-bar">
-                <div class="bar-fill" :style="{ width: dailyFortune.fortune.career + '%' }"></div>
-              </div>
-              <span class="fortune-value">{{ dailyFortune.fortune.career }}</span>
-            </div>
-            <div class="fortune-item">
-              <span class="fortune-icon">&#10084;</span>
-              <span class="fortune-name">感情</span>
-              <div class="fortune-bar">
-                <div class="bar-fill" :style="{ width: dailyFortune.fortune.love + '%' }"></div>
-              </div>
-              <span class="fortune-value">{{ dailyFortune.fortune.love }}</span>
-            </div>
-            <div class="fortune-item">
-              <span class="fortune-icon">&#127807;</span>
-              <span class="fortune-name">健康</span>
-              <div class="fortune-bar">
-                <div class="bar-fill" :style="{ width: dailyFortune.fortune.health + '%' }"></div>
-              </div>
-              <span class="fortune-value">{{ dailyFortune.fortune.health }}</span>
-            </div>
-            <div class="fortune-item">
-              <span class="fortune-icon">&#128176;</span>
-              <span class="fortune-name">財運</span>
-              <div class="fortune-bar">
-                <div class="bar-fill" :style="{ width: dailyFortune.fortune.wealth + '%' }"></div>
-              </div>
-              <span class="fortune-value">{{ dailyFortune.fortune.wealth }}</span>
-            </div>
-          </div>
-
-          <p class="fortune-advice">{{ dailyFortune.advice }}</p>
-
-          <div class="lucky-items">
-            <h4>幸運指南</h4>
-            <div class="lucky-grid">
-              <div class="lucky-item">
-                <span class="lucky-label">方位</span>
-                <ruby class="lucky-value">
-                  {{ dailyFortune.lucky.direction }}<rp>(</rp><rt>{{ dailyFortune.lucky.direction_reading }}</rt><rp>)</rp>
-                </ruby>
-              </div>
-              <div class="lucky-item">
-                <span class="lucky-label">顏色</span>
-                <span class="lucky-value">
-                  <span class="color-dot" :style="{ background: dailyFortune.lucky.color_hex }"></span>
-                  {{ dailyFortune.lucky.color }}
-                </span>
-              </div>
-              <div class="lucky-item">
-                <span class="lucky-label">數字</span>
-                <span class="lucky-value">{{ dailyFortune.lucky.numbers.join(', ') }}</span>
+            <div class="lucky-items">
+              <h4>幸運指南</h4>
+              <div class="lucky-grid">
+                <div class="lucky-item">
+                  <span class="lucky-label">方位</span>
+                  <ruby class="lucky-value">{{ weeklyFortune.lucky.direction }}<rp>(</rp><rt>{{ weeklyFortune.lucky.direction_reading }}</rt><rp>)</rp></ruby>
+                </div>
+                <div class="lucky-item">
+                  <span class="lucky-label">顏色</span>
+                  <span class="lucky-value"><span class="color-dot" :style="{ background: weeklyFortune.lucky.color_hex }"></span>{{ weeklyFortune.lucky.color }}</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </CollapsibleCard>
 
-        <!-- 本月運勢 -->
-        <div v-else-if="fortuneTab === 'monthly' && monthlyFortune" class="fortune-content monthly">
-          <div class="fortune-header">
-            <div class="fortune-date">
-              <span class="date-label">{{ monthlyFortune.year }} 年 {{ monthlyFortune.month }} 月</span>
-            </div>
-            <div class="month-theme">
-              <span class="theme-title">{{ monthlyFortune.theme.title }}</span>
-              <span class="theme-focus">重點：{{ monthlyFortune.theme.focus }}</span>
-            </div>
-          </div>
-
-          <div class="month-relation">
-            <span class="relation-label">月宿關係：</span>
-            <ruby class="relation-name">
-              {{ monthlyFortune.relation.name }}<rp>(</rp><rt>{{ monthlyFortune.relation.reading }}</rt><rp>)</rp>
-            </ruby>
-          </div>
-
-          <div class="fortune-overall" :class="getFortuneLevel(monthlyFortune.fortune.overall).class">
-            <span class="overall-score">{{ monthlyFortune.fortune.overall }}</span>
-            <span class="overall-label">{{ getFortuneLevel(monthlyFortune.fortune.overall).text }}</span>
-          </div>
-
-          <div class="fortune-grid">
-            <div class="fortune-item">
-              <span class="fortune-icon">&#128188;</span>
-              <span class="fortune-name">事業</span>
-              <div class="fortune-bar">
-                <div class="bar-fill" :style="{ width: monthlyFortune.fortune.career + '%' }"></div>
-              </div>
-              <span class="fortune-value">{{ monthlyFortune.fortune.career }}</span>
-            </div>
-            <div class="fortune-item">
-              <span class="fortune-icon">&#10084;</span>
-              <span class="fortune-name">感情</span>
-              <div class="fortune-bar">
-                <div class="bar-fill" :style="{ width: monthlyFortune.fortune.love + '%' }"></div>
-              </div>
-              <span class="fortune-value">{{ monthlyFortune.fortune.love }}</span>
-            </div>
-            <div class="fortune-item">
-              <span class="fortune-icon">&#127807;</span>
-              <span class="fortune-name">健康</span>
-              <div class="fortune-bar">
-                <div class="bar-fill" :style="{ width: monthlyFortune.fortune.health + '%' }"></div>
-              </div>
-              <span class="fortune-value">{{ monthlyFortune.fortune.health }}</span>
-            </div>
-            <div class="fortune-item">
-              <span class="fortune-icon">&#128176;</span>
-              <span class="fortune-name">財運</span>
-              <div class="fortune-bar">
-                <div class="bar-fill" :style="{ width: monthlyFortune.fortune.wealth + '%' }"></div>
-              </div>
-              <span class="fortune-value">{{ monthlyFortune.fortune.wealth }}</span>
-            </div>
-          </div>
-
-          <div class="weekly-breakdown">
-            <h4>每週概況</h4>
-            <div class="weekly-grid">
-              <div v-for="w in monthlyFortune.weekly" :key="w.week" class="weekly-item">
-                <span class="week-num">第 {{ w.week }} 週</span>
-                <span class="week-score" :class="getFortuneLevel(w.score).class">{{ w.score }}</span>
-                <span class="week-focus">{{ w.focus }}</span>
+        <!-- 本月運勢卡片 -->
+        <CollapsibleCard
+          v-if="monthlyFortune"
+          title="本月運勢"
+          :subtitle="`${monthlyFortune.year} 年 ${monthlyFortune.month} 月`"
+          icon="calendar-fill"
+          :badge="`${monthlyFortune.fortune.overall} ${getFortuneLevel(monthlyFortune.fortune.overall).text}`"
+          :badge-class="getFortuneLevel(monthlyFortune.fortune.overall).class"
+          :default-open="false"
+        >
+          <div class="fortune-content">
+            <div class="fortune-header">
+              <div class="month-theme">
+                <span class="theme-title">{{ monthlyFortune.theme.title }}</span>
+                <span class="theme-focus">重點：{{ monthlyFortune.theme.focus }}</span>
               </div>
             </div>
-          </div>
 
-          <p class="fortune-advice">{{ monthlyFortune.advice }}</p>
-        </div>
-
-        <!-- 本年運勢 -->
-        <div v-else-if="fortuneTab === 'yearly' && yearlyFortune" class="fortune-content yearly">
-          <div class="fortune-header">
-            <div class="fortune-date">
-              <span class="date-label">{{ yearlyFortune.year }} 年</span>
-            </div>
-            <div class="year-info">
-              <ruby class="stem-branch">
-                {{ yearlyFortune.stem.character }}{{ yearlyFortune.branch.character }}
-                <rp>(</rp><rt>{{ yearlyFortune.stem.reading }}{{ yearlyFortune.branch.reading }}</rt><rp>)</rp>
-              </ruby>
-              <span class="zodiac">{{ yearlyFortune.branch.name }}年</span>
-            </div>
-          </div>
-
-          <div class="fortune-overall" :class="getFortuneLevel(yearlyFortune.fortune.overall).class">
-            <span class="overall-score">{{ yearlyFortune.fortune.overall }}</span>
-            <span class="overall-label">{{ getFortuneLevel(yearlyFortune.fortune.overall).text }}</span>
-          </div>
-
-          <div class="fortune-grid">
-            <div class="fortune-item">
-              <span class="fortune-icon">&#128188;</span>
-              <span class="fortune-name">事業</span>
-              <div class="fortune-bar">
-                <div class="bar-fill" :style="{ width: yearlyFortune.fortune.career + '%' }"></div>
-              </div>
-              <span class="fortune-value">{{ yearlyFortune.fortune.career }}</span>
-            </div>
-            <div class="fortune-item">
-              <span class="fortune-icon">&#10084;</span>
-              <span class="fortune-name">感情</span>
-              <div class="fortune-bar">
-                <div class="bar-fill" :style="{ width: yearlyFortune.fortune.love + '%' }"></div>
-              </div>
-              <span class="fortune-value">{{ yearlyFortune.fortune.love }}</span>
-            </div>
-            <div class="fortune-item">
-              <span class="fortune-icon">&#127807;</span>
-              <span class="fortune-name">健康</span>
-              <div class="fortune-bar">
-                <div class="bar-fill" :style="{ width: yearlyFortune.fortune.health + '%' }"></div>
-              </div>
-              <span class="fortune-value">{{ yearlyFortune.fortune.health }}</span>
-            </div>
-            <div class="fortune-item">
-              <span class="fortune-icon">&#128176;</span>
-              <span class="fortune-name">財運</span>
-              <div class="fortune-bar">
-                <div class="bar-fill" :style="{ width: yearlyFortune.fortune.wealth + '%' }"></div>
-              </div>
-              <span class="fortune-value">{{ yearlyFortune.fortune.wealth }}</span>
-            </div>
-          </div>
-
-          <div class="monthly-trend">
-            <h4>月度趨勢</h4>
-            <div class="trend-chart">
-              <div
-                v-for="m in yearlyFortune.monthly_trend"
-                :key="m.month"
-                class="trend-bar"
-                :style="{ height: m.score + '%' }"
-                :class="getFortuneLevel(m.score).class"
-              >
-                <span class="trend-value">{{ m.score }}</span>
-              </div>
-            </div>
-            <div class="trend-labels">
-              <span v-for="i in 12" :key="i">{{ i }}月</span>
-            </div>
-          </div>
-
-          <div v-if="yearlyFortune.opportunities.length" class="opportunities">
-            <h4>機會提示</h4>
-            <ul>
-              <li v-for="(opp, idx) in yearlyFortune.opportunities" :key="idx">{{ opp }}</li>
-            </ul>
-          </div>
-
-          <div v-if="yearlyFortune.warnings.length" class="warnings">
-            <h4>注意事項</h4>
-            <ul>
-              <li v-for="(warn, idx) in yearlyFortune.warnings" :key="idx">{{ warn }}</li>
-            </ul>
-          </div>
-
-          <p class="fortune-advice">{{ yearlyFortune.advice }}</p>
-        </div>
-      </section>
-
-      <!-- 相性診斷 -->
-      <section class="compatibility-section card">
-        <h2 class="section-title">
-          雙人相性診斷（<ruby>三九秘法<rp>(</rp><rt>さんくひほう</rt><rp>)</rp></ruby>）
-        </h2>
-        <p class="section-desc">輸入兩人的生日，看看宿曜道怎麼說你們的緣分</p>
-
-        <div class="compat-form">
-          <div class="form-group">
-            <sl-input
-              type="date"
-              v-model="date1"
-              label="第一個人的生日"
-              :max="new Date().toISOString().split('T')[0]"
-            ></sl-input>
-          </div>
-          <div class="form-group">
-            <sl-input
-              type="date"
-              v-model="date2"
-              label="第二個人的生日"
-              :max="new Date().toISOString().split('T')[0]"
-            ></sl-input>
-          </div>
-          <button
-            class="btn-gold"
-            @click="calculateCompatibility"
-            :disabled="!date1 || !date2 || compatLoading"
-          >
-            <sl-spinner v-if="compatLoading"></sl-spinner>
-            <span v-else>分析相性</span>
-          </button>
-        </div>
-
-        <div v-if="compatError" class="error-msg">
-          {{ compatError }}
-        </div>
-
-        <!-- 相性結果 -->
-        <div v-if="compatibility" class="compat-result">
-          <div class="compat-pair">
-            <div class="person-card">
-              <ruby class="person-mansion">
-                {{ compatibility.person1.mansion }}<rp>(</rp><rt>{{ compatibility.person1.reading }}</rt><rp>)</rp>
-              </ruby>
-              <span class="person-element" :style="{ color: elementColors[compatibility.person1.element] }">
-                <ruby>{{ compatibility.person1.element }}<rp>(</rp><rt>{{ compatibility.person1.element_reading }}</rt><rp>)</rp></ruby>
-              </span>
-              <span class="element-traits">{{ compatibility.person1.element_traits }}</span>
-            </div>
-            <div class="compat-vs">
+            <div class="month-relation">
+              <span class="relation-label">月宿關係：</span>
               <ruby class="relation-name">
-                {{ compatibility.relation.name }}<rp>(</rp><rt>{{ compatibility.relation.reading }}</rt><rp>)</rp>
+                {{ monthlyFortune.relation.name }}<rp>(</rp><rt>{{ monthlyFortune.relation.reading }}</rt><rp>)</rp>
               </ruby>
             </div>
-            <div class="person-card">
-              <ruby class="person-mansion">
-                {{ compatibility.person2.mansion }}<rp>(</rp><rt>{{ compatibility.person2.reading }}</rt><rp>)</rp>
-              </ruby>
-              <span class="person-element" :style="{ color: elementColors[compatibility.person2.element] }">
-                <ruby>{{ compatibility.person2.element }}<rp>(</rp><rt>{{ compatibility.person2.element_reading }}</rt><rp>)</rp></ruby>
-              </span>
-              <span class="element-traits">{{ compatibility.person2.element_traits }}</span>
+
+            <div class="fortune-overall" :class="getFortuneLevel(monthlyFortune.fortune.overall).class">
+              <span class="overall-score">{{ monthlyFortune.fortune.overall }}</span>
+              <span class="overall-label">{{ getFortuneLevel(monthlyFortune.fortune.overall).text }}</span>
             </div>
+
+            <div class="fortune-grid">
+              <div class="fortune-item">
+                <span class="fortune-name">事業</span>
+                <div class="fortune-bar"><div class="bar-fill" :style="{ width: monthlyFortune.fortune.career + '%' }"></div></div>
+                <span class="fortune-value">{{ monthlyFortune.fortune.career }}</span>
+              </div>
+              <div class="fortune-item">
+                <span class="fortune-name">感情</span>
+                <div class="fortune-bar"><div class="bar-fill" :style="{ width: monthlyFortune.fortune.love + '%' }"></div></div>
+                <span class="fortune-value">{{ monthlyFortune.fortune.love }}</span>
+              </div>
+              <div class="fortune-item">
+                <span class="fortune-name">健康</span>
+                <div class="fortune-bar"><div class="bar-fill" :style="{ width: monthlyFortune.fortune.health + '%' }"></div></div>
+                <span class="fortune-value">{{ monthlyFortune.fortune.health }}</span>
+              </div>
+              <div class="fortune-item">
+                <span class="fortune-name">財運</span>
+                <div class="fortune-bar"><div class="bar-fill" :style="{ width: monthlyFortune.fortune.wealth + '%' }"></div></div>
+                <span class="fortune-value">{{ monthlyFortune.fortune.wealth }}</span>
+              </div>
+            </div>
+
+            <div class="weekly-breakdown">
+              <h4>每週概況</h4>
+              <div class="weekly-grid">
+                <div v-for="w in monthlyFortune.weekly" :key="w.week" class="weekly-item">
+                  <span class="week-num">第 {{ w.week }} 週</span>
+                  <span class="week-score" :class="getFortuneLevel(w.score).class">{{ w.score }}</span>
+                  <span class="week-focus">{{ w.focus }}</span>
+                </div>
+              </div>
+            </div>
+
+            <p class="fortune-advice">{{ monthlyFortune.advice }}</p>
           </div>
+        </CollapsibleCard>
 
-          <div class="compat-score" :class="getScoreLevel(compatibility.score).class">
-            <span class="score-number">{{ compatibility.score }}</span>
-            <span class="score-label">{{ getScoreLevel(compatibility.score).text }}</span>
+        <!-- 本年運勢卡片 -->
+        <CollapsibleCard
+          v-if="yearlyFortune"
+          title="本年運勢"
+          :subtitle="`${yearlyFortune.year} 年`"
+          icon="calendar-range-fill"
+          :badge="`${yearlyFortune.fortune.overall} ${getFortuneLevel(yearlyFortune.fortune.overall).text}`"
+          :badge-class="getFortuneLevel(yearlyFortune.fortune.overall).class"
+          :default-open="false"
+        >
+          <div class="fortune-content">
+            <div class="fortune-header">
+              <div class="year-info">
+                <ruby class="stem-branch">
+                  {{ yearlyFortune.stem.character }}{{ yearlyFortune.branch.character }}
+                  <rp>(</rp><rt>{{ yearlyFortune.stem.reading }}{{ yearlyFortune.branch.reading }}</rt><rp>)</rp>
+                </ruby>
+                <span class="zodiac">{{ yearlyFortune.branch.name }}年</span>
+              </div>
+            </div>
+
+            <div class="fortune-overall" :class="getFortuneLevel(yearlyFortune.fortune.overall).class">
+              <span class="overall-score">{{ yearlyFortune.fortune.overall }}</span>
+              <span class="overall-label">{{ getFortuneLevel(yearlyFortune.fortune.overall).text }}</span>
+            </div>
+
+            <div class="fortune-grid">
+              <div class="fortune-item">
+                <span class="fortune-name">事業</span>
+                <div class="fortune-bar"><div class="bar-fill" :style="{ width: yearlyFortune.fortune.career + '%' }"></div></div>
+                <span class="fortune-value">{{ yearlyFortune.fortune.career }}</span>
+              </div>
+              <div class="fortune-item">
+                <span class="fortune-name">感情</span>
+                <div class="fortune-bar"><div class="bar-fill" :style="{ width: yearlyFortune.fortune.love + '%' }"></div></div>
+                <span class="fortune-value">{{ yearlyFortune.fortune.love }}</span>
+              </div>
+              <div class="fortune-item">
+                <span class="fortune-name">健康</span>
+                <div class="fortune-bar"><div class="bar-fill" :style="{ width: yearlyFortune.fortune.health + '%' }"></div></div>
+                <span class="fortune-value">{{ yearlyFortune.fortune.health }}</span>
+              </div>
+              <div class="fortune-item">
+                <span class="fortune-name">財運</span>
+                <div class="fortune-bar"><div class="bar-fill" :style="{ width: yearlyFortune.fortune.wealth + '%' }"></div></div>
+                <span class="fortune-value">{{ yearlyFortune.fortune.wealth }}</span>
+              </div>
+            </div>
+
+            <div class="monthly-trend">
+              <h4>月度趨勢</h4>
+              <div class="trend-chart">
+                <div
+                  v-for="m in yearlyFortune.monthly_trend"
+                  :key="m.month"
+                  class="trend-bar"
+                  :style="{ height: m.score + '%' }"
+                  :class="getFortuneLevel(m.score).class"
+                >
+                  <span class="trend-value">{{ m.score }}</span>
+                </div>
+              </div>
+              <div class="trend-labels">
+                <span v-for="i in 12" :key="i">{{ i }}月</span>
+              </div>
+            </div>
+
+            <div v-if="yearlyFortune.opportunities.length" class="opportunities">
+              <h4>機會提示</h4>
+              <ul>
+                <li v-for="(opp, idx) in yearlyFortune.opportunities" :key="idx">{{ opp }}</li>
+              </ul>
+            </div>
+
+            <div v-if="yearlyFortune.warnings.length" class="warnings">
+              <h4>注意事項</h4>
+              <ul>
+                <li v-for="(warn, idx) in yearlyFortune.warnings" :key="idx">{{ warn }}</li>
+              </ul>
+            </div>
+
+            <p class="fortune-advice">{{ yearlyFortune.advice }}</p>
           </div>
+        </CollapsibleCard>
 
-          <!-- 計算說明 -->
-          <div class="calculation-info">
-            <div class="calc-item">
-              <span class="calc-label">距離計算</span>
-              <code>{{ compatibility.calculation.formula }}</code>
+        <!-- 雙人相性診斷卡片 -->
+        <CollapsibleCard
+          title="雙人相性診斷"
+          subtitle="輸入兩人生日分析緣分"
+          icon="people-fill"
+          :badge="compatibility ? `${compatibility.score} ${getScoreLevel(compatibility.score).text}` : undefined"
+          :badge-class="compatibility ? getScoreLevel(compatibility.score).class : ''"
+          :default-open="false"
+        >
+          <div class="compat-content">
+            <div class="compat-form">
+              <div class="form-group">
+                <sl-input
+                  type="date"
+                  v-model="date1"
+                  label="第一個人的生日"
+                  :max="new Date().toISOString().split('T')[0]"
+                ></sl-input>
+              </div>
+              <div class="form-group">
+                <sl-input
+                  type="date"
+                  v-model="date2"
+                  label="第二個人的生日"
+                  :max="new Date().toISOString().split('T')[0]"
+                ></sl-input>
+              </div>
+              <button
+                class="btn-gold"
+                @click="calculateCompatibility"
+                :disabled="!date1 || !date2 || compatLoading"
+              >
+                <sl-spinner v-if="compatLoading"></sl-spinner>
+                <span v-else>分析相性</span>
+              </button>
             </div>
-            <div class="calc-item">
-              <span class="calc-label">元素加成</span>
-              <span>{{ compatibility.calculation.element_relation }}</span>
-            </div>
-          </div>
 
-          <div class="compat-summary">
-            <p class="description">{{ compatibility.relation.description }}</p>
-
-            <div v-if="compatibility.relation.detailed" class="detailed-section">
-              <p>{{ compatibility.relation.detailed }}</p>
+            <div v-if="compatError" class="error-msg">
+              {{ compatError }}
             </div>
 
-            <button
-              class="toggle-details"
-              @click="showCompatDetails = !showCompatDetails"
-            >
-              {{ showCompatDetails ? '收起詳細建議' : '查看詳細建議' }}
-              <sl-icon :name="showCompatDetails ? 'chevron-up' : 'chevron-down'"></sl-icon>
-            </button>
-
-            <div v-if="showCompatDetails" class="compat-details">
-              <div v-if="compatibility.relation.tips?.length" class="detail-block tips">
-                <h4>相處建議</h4>
-                <ul>
-                  <li v-for="tip in compatibility.relation.tips" :key="tip">{{ tip }}</li>
-                </ul>
+            <!-- 相性結果 -->
+            <div v-if="compatibility" class="compat-result">
+              <div class="compat-pair">
+                <div class="person-card">
+                  <ruby class="person-mansion">
+                    {{ compatibility.person1.mansion }}<rp>(</rp><rt>{{ compatibility.person1.reading }}</rt><rp>)</rp>
+                  </ruby>
+                  <span class="person-element" :style="{ color: elementColors[compatibility.person1.element] }">
+                    <ruby>{{ compatibility.person1.element }}<rp>(</rp><rt>{{ compatibility.person1.element_reading }}</rt><rp>)</rp></ruby>
+                  </span>
+                  <span class="element-traits">{{ compatibility.person1.element_traits }}</span>
+                </div>
+                <div class="compat-vs">
+                  <ruby class="relation-name">
+                    {{ compatibility.relation.name }}<rp>(</rp><rt>{{ compatibility.relation.reading }}</rt><rp>)</rp>
+                  </ruby>
+                </div>
+                <div class="person-card">
+                  <ruby class="person-mansion">
+                    {{ compatibility.person2.mansion }}<rp>(</rp><rt>{{ compatibility.person2.reading }}</rt><rp>)</rp>
+                  </ruby>
+                  <span class="person-element" :style="{ color: elementColors[compatibility.person2.element] }">
+                    <ruby>{{ compatibility.person2.element }}<rp>(</rp><rt>{{ compatibility.person2.element_reading }}</rt><rp>)</rp></ruby>
+                  </span>
+                  <span class="element-traits">{{ compatibility.person2.element_traits }}</span>
+                </div>
               </div>
 
-              <div v-if="compatibility.relation.avoid?.length" class="detail-block avoid">
-                <h4>應該避免</h4>
-                <ul>
-                  <li v-for="item in compatibility.relation.avoid" :key="item">{{ item }}</li>
-                </ul>
+              <div class="compat-score" :class="getScoreLevel(compatibility.score).class">
+                <span class="score-number">{{ compatibility.score }}</span>
+                <span class="score-label">{{ getScoreLevel(compatibility.score).text }}</span>
               </div>
 
-              <div v-if="compatibility.relation.good_for?.length" class="detail-block good-for">
-                <h4>適合的關係</h4>
-                <div class="tag-list">
-                  <span v-for="item in compatibility.relation.good_for" :key="item" class="tag">{{ item }}</span>
+              <!-- 計算說明 -->
+              <div class="calculation-info">
+                <div class="calc-item">
+                  <span class="calc-label">距離計算</span>
+                  <code>{{ compatibility.calculation.formula }}</code>
+                </div>
+                <div class="calc-item">
+                  <span class="calc-label">元素加成</span>
+                  <span>{{ compatibility.calculation.element_relation }}</span>
+                </div>
+              </div>
+
+              <div class="compat-summary">
+                <p class="description">{{ compatibility.relation.description }}</p>
+
+                <div v-if="compatibility.relation.detailed" class="detailed-section">
+                  <p>{{ compatibility.relation.detailed }}</p>
+                </div>
+
+                <div class="compat-details">
+                  <div v-if="compatibility.relation.tips?.length" class="detail-block tips">
+                    <h4>相處建議</h4>
+                    <ul>
+                      <li v-for="tip in compatibility.relation.tips" :key="tip">{{ tip }}</li>
+                    </ul>
+                  </div>
+
+                  <div v-if="compatibility.relation.avoid?.length" class="detail-block avoid">
+                    <h4>應該避免</h4>
+                    <ul>
+                      <li v-for="item in compatibility.relation.avoid" :key="item">{{ item }}</li>
+                    </ul>
+                  </div>
+
+                  <div v-if="compatibility.relation.good_for?.length" class="detail-block good-for">
+                    <h4>適合的關係</h4>
+                    <div class="tag-list">
+                      <span v-for="item in compatibility.relation.good_for" :key="item" class="tag">{{ item }}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </CollapsibleCard>
+      </div>
 
       <!-- 公式說明區塊 -->
       <section class="formula-section card">
@@ -1359,23 +1448,52 @@ ruby rp {
   color: var(--stellar-gold);
 }
 
-/* 結果區域 - PC 兩欄佈局 */
-.results-layout {
+/* 結果區域 - 摺疊卡片佈局 */
+.results-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 800px;
+  margin: 0 auto var(--space-8);
+}
+
+/* 本命宿內容 */
+.mansion-content {
+  padding-top: var(--space-2);
+}
+
+.mansion-header-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
+.mansion-name-large {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--stellar-gold);
+}
+
+.mansion-name-large rt {
+  font-size: 0.4em;
+}
+
+.mansion-details-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-6);
-  margin-bottom: var(--space-8);
-  max-width: 1200px;
-  margin-left: auto;
-  margin-right: auto;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
 }
 
-.mansion-section {
-  height: fit-content;
+/* 配對內容 */
+.compat-finder-content,
+.compat-content {
+  padding-top: var(--space-2);
 }
 
-.compat-finder-section {
-  height: fit-content;
+/* 運勢內容 */
+.fortune-content {
+  padding-top: var(--space-2);
 }
 
 /* 本命宿查詢 */
@@ -2430,6 +2548,51 @@ ruby rp {
 
 .month-relation .relation-name {
   color: var(--stellar-gold);
+  font-weight: 600;
+}
+
+.week-num-label {
+  font-size: 0.85rem;
+  color: var(--stellar-gold);
+  margin-left: var(--space-2);
+}
+
+.daily-overview {
+  padding: var(--space-4);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+}
+
+.daily-overview h4 {
+  color: var(--stellar-gold);
+  margin-bottom: var(--space-3);
+  font-size: 0.95rem;
+}
+
+.daily-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-2);
+}
+
+.daily-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-2);
+  background: var(--cosmos-twilight);
+  border-radius: var(--radius-md);
+}
+
+.day-weekday {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-bottom: var(--space-1);
+}
+
+.day-score {
+  font-size: 1.1rem;
   font-weight: 600;
 }
 

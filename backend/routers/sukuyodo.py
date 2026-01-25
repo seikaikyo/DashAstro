@@ -319,6 +319,45 @@ def get_monthly_fortune(
     }
 
 
+@router.get("/fortune/weekly/{year}/{week}")
+def get_weekly_fortune(
+    year: int,
+    week: int,
+    birth_date: str,
+    session: Session = Depends(get_session)
+):
+    """
+    取得每週運勢
+
+    Args:
+        year: 年份
+        week: ISO 週數 (1-53)
+        birth_date: 出生日期，格式 YYYY-MM-DD（Query parameter）
+    """
+    if week < 1 or week > 53:
+        raise HTTPException(
+            status_code=400,
+            detail="週數必須在 1-53 之間"
+        )
+
+    try:
+        birth = date.fromisoformat(birth_date)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="日期格式錯誤，請使用 YYYY-MM-DD"
+        )
+
+    result = sukuyodo_service.calculate_weekly_fortune(birth, year, week)
+
+    stats_service.log_usage(session, Features.SUKUYODO_LOOKUP)
+
+    return {
+        "success": True,
+        "data": result
+    }
+
+
 @router.get("/fortune/yearly/{year}")
 def get_yearly_fortune(
     year: int,
