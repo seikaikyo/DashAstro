@@ -1,13 +1,14 @@
 """使用統計模型"""
 from sqlmodel import SQLModel, Field
-from datetime import datetime, date
+from datetime import datetime
+from datetime import date as date_type
 from typing import Optional
 
 
 class UsageStatsBase(SQLModel):
     """使用統計基本欄位"""
     feature: str = Field(index=True, max_length=50)  # 功能名稱
-    date: date = Field(index=True)  # 統計日期
+    stat_date: date_type = Field(index=True)  # 統計日期
     count: int = Field(default=0)  # 使用次數
 
 
