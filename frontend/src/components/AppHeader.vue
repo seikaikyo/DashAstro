@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useProfile } from '../stores/profile'
 
 const route = useRoute()
 const menuOpen = ref(false)
+const { isProfileSet, myZodiac } = useProfile()
 
 const navItems = [
   { path: '/', label: '首頁', icon: 'house' },
@@ -16,6 +18,8 @@ const isActive = (path: string) => {
   if (path === '/') return route.path === '/'
   return route.path.startsWith(path)
 }
+
+const profileIcon = computed(() => isProfileSet.value ? 'person-fill' : 'person')
 </script>
 
 <template>
@@ -38,11 +42,22 @@ const isActive = (path: string) => {
         </router-link>
       </nav>
 
-      <sl-icon-button
-        name="list"
-        class="menu-toggle"
-        @click="menuOpen = !menuOpen"
-      ></sl-icon-button>
+      <div class="header-actions">
+        <router-link
+          to="/profile"
+          :class="['profile-link', { active: route.path === '/profile' }]"
+          title="我的收藏"
+        >
+          <sl-icon :name="profileIcon"></sl-icon>
+          <span v-if="isProfileSet && myZodiac" class="profile-zodiac">{{ myZodiac.symbol }}</span>
+        </router-link>
+
+        <sl-icon-button
+          name="list"
+          class="menu-toggle"
+          @click="menuOpen = !menuOpen"
+        ></sl-icon-button>
+      </div>
     </div>
 
     <nav :class="['nav-mobile', { open: menuOpen }]">
@@ -55,6 +70,15 @@ const isActive = (path: string) => {
       >
         <sl-icon :name="item.icon"></sl-icon>
         {{ item.label }}
+      </router-link>
+      <router-link
+        to="/profile"
+        :class="['nav-link', { active: route.path === '/profile' }]"
+        @click="menuOpen = false"
+      >
+        <sl-icon :name="profileIcon"></sl-icon>
+        我的收藏
+        <span v-if="isProfileSet && myZodiac" class="mobile-zodiac">{{ myZodiac.symbol }}</span>
       </router-link>
     </nav>
   </header>
@@ -113,6 +137,40 @@ const isActive = (path: string) => {
 
 .nav-link.active {
   color: var(--stellar-gold);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.profile-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.profile-link:hover {
+  color: var(--stellar-gold);
+  background: var(--cosmos-dusk);
+}
+
+.profile-link.active {
+  color: var(--stellar-gold);
+}
+
+.profile-zodiac {
+  font-size: 1rem;
+}
+
+.mobile-zodiac {
+  margin-left: auto;
+  font-size: 1.25rem;
 }
 
 .menu-toggle {
