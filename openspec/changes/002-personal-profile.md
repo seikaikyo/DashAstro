@@ -1,8 +1,9 @@
 ---
 title: 個人檔案與配對分析
 type: feature
-status: in-progress
+status: completed
 created: 2026-01-25
+completed: 2026-01-25
 ---
 
 # 個人檔案與配對分析
@@ -99,9 +100,10 @@ CREATE TABLE compatibility_readings (
 5. AI 解讀包含雙方星座分析
 
 ## Checklist
-- [ ] 建立配對計算服務
-- [ ] 建立配對 API
-- [ ] 前端個人檔案頁面
-- [ ] 整合週運勢
-- [ ] 整合塔羅占卜
-- [ ] 首次造訪引導
+- [x] 建立配對計算服務
+- [x] 建立配對 API
+- [x] 前端個人檔案頁面
+- [x] 整合週運勢
+- [x] 整合今日天象
+- [ ] 整合塔羅占卜 (待實作)
+- [ ] 首次造訪引導 (待實作)
