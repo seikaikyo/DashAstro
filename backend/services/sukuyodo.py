@@ -443,6 +443,396 @@ class SukuyodoService:
 
         return result
 
+    # ==================== 運勢計算 ====================
+
+    def _load_fortune_data(self):
+        """載入運勢資料"""
+        if not hasattr(self, '_fortune_data') or self._fortune_data is None:
+            data_path = Path(__file__).parent.parent / "data" / "sukuyodo_fortune.json"
+            with open(data_path, "r", encoding="utf-8") as f:
+                self._fortune_data = json.load(f)
+        return self._fortune_data
+
+    def _get_element_relation(self, elem1: str, elem2: str) -> tuple[str, int]:
+        """
+        計算兩個元素之間的關係
+
+        Returns:
+            (關係類型, 加成分數)
+        """
+        fortune_data = self._load_fortune_data()
+
+        if elem1 == elem2:
+            return ("same", fortune_data["element_relations"]["same"]["bonus"])
+
+        # 檢查相生
+        for pair in fortune_data["generating_pairs"]:
+            if (elem1 == pair[0] and elem2 == pair[1]) or \
+               (elem1 == pair[1] and elem2 == pair[0]):
+                return ("generating", fortune_data["element_relations"]["generating"]["bonus"])
+
+        # 檢查相剋
+        for pair in fortune_data["conflicting_pairs"]:
+            if (elem1 == pair[0] and elem2 == pair[1]) or \
+               (elem1 == pair[1] and elem2 == pair[0]):
+                return ("conflicting", fortune_data["element_relations"]["conflicting"]["bonus"])
+
+        # 檢查相洩
+        for pair in fortune_data["weakening_pairs"]:
+            if (elem1 == pair[0] and elem2 == pair[1]) or \
+               (elem1 == pair[1] and elem2 == pair[0]):
+                return ("weakening", fortune_data["element_relations"]["weakening"]["bonus"])
+
+        # 日月特殊處理
+        if elem1 in ["日", "月"] or elem2 in ["日", "月"]:
+            return ("generating", 5)  # 日月與大部分元素相合
+
+        return ("neutral", fortune_data["element_relations"]["neutral"]["bonus"])
+
+    def calculate_daily_fortune(self, birth_date: date, target_date: date) -> dict:
+        """
+        計算每日運勢
+
+        Args:
+            birth_date: 出生日期
+            target_date: 要查詢的日期
+
+        Returns:
+            每日運勢資料
+        """
+        import random
+
+        fortune_data = self._load_fortune_data()
+        mansion = self.get_mansion(birth_date)
+        user_element = mansion["element"]
+
+        # 取得當日七曜
+        weekday = target_date.weekday()  # 0=Monday
+        # 轉換為日本七曜（0=Sunday）
+        jp_weekday = (weekday + 1) % 7
+        day_info = fortune_data["weekday_elements"][str(jp_weekday)]
+        day_element = day_info["element"]
+
+        # 計算元素關係
+        relation_type, base_bonus = self._get_element_relation(user_element, day_element)
+        relation_desc = fortune_data["element_relations"].get(
+            relation_type,
+            fortune_data["element_relations"]["neutral"]
+        )["description"]
+
+        # 基礎分數 (60-80)
+        base_score = 70
+
+        # 根據關係調整
+        overall_score = max(30, min(100, base_score + base_bonus))
+
+        # 計算各項運勢（加入一些變化）
+        random.seed(f"{birth_date.isoformat()}{target_date.isoformat()}")
+
+        def calc_category_score(category: str) -> int:
+            cat_data = fortune_data["fortune_categories"][category]
+            cat_bonus = 5 if user_element in cat_data["favorable_elements"] else 0
+            day_bonus = 5 if day_element in cat_data["favorable_elements"] else 0
+            variation = random.randint(-8, 8)
+            return max(30, min(100, base_score + base_bonus + cat_bonus + day_bonus + variation))
+
+        career_score = calc_category_score("career")
+        love_score = calc_category_score("love")
+        health_score = calc_category_score("health")
+        wealth_score = calc_category_score("wealth")
+
+        # 選擇建議
+        if overall_score >= 85:
+            advice_list = fortune_data["daily_advice"]["excellent"]
+        elif overall_score >= 70:
+            advice_list = fortune_data["daily_advice"]["good"]
+        elif overall_score >= 55:
+            advice_list = fortune_data["daily_advice"]["neutral"]
+        elif overall_score >= 40:
+            advice_list = fortune_data["daily_advice"]["caution"]
+        else:
+            advice_list = fortune_data["daily_advice"]["challenging"]
+
+        advice = random.choice(advice_list)
+
+        # 幸運物品
+        lucky = fortune_data["lucky_items"]
+        lucky_direction = lucky["directions"].get(day_element, lucky["directions"]["土"])
+        lucky_color = lucky["colors"].get(day_element, lucky["colors"]["土"])
+        lucky_numbers = lucky["numbers"].get(day_element, [5])
+
+        return {
+            "date": target_date.isoformat(),
+            "weekday": {
+                "name": day_info["name"],
+                "reading": day_info["reading"],
+                "element": day_element,
+                "planet": day_info["planet"]
+            },
+            "your_mansion": {
+                "name_jp": mansion["name_jp"],
+                "reading": mansion["reading"],
+                "element": user_element,
+                "index": mansion["index"]
+            },
+            "element_relation": {
+                "type": relation_type,
+                "description": relation_desc
+            },
+            "fortune": {
+                "overall": overall_score,
+                "career": career_score,
+                "love": love_score,
+                "health": health_score,
+                "wealth": wealth_score
+            },
+            "advice": advice,
+            "lucky": {
+                "direction": lucky_direction["direction"],
+                "direction_reading": lucky_direction["reading"],
+                "color": lucky_color["color"],
+                "color_reading": lucky_color["reading"],
+                "color_hex": lucky_color["hex"],
+                "numbers": lucky_numbers
+            }
+        }
+
+    def calculate_monthly_fortune(self, birth_date: date, year: int, month: int) -> dict:
+        """
+        計算每月運勢
+
+        Args:
+            birth_date: 出生日期
+            year: 年份
+            month: 月份 (1-12)
+
+        Returns:
+            每月運勢資料
+        """
+        import random
+        from datetime import timedelta
+
+        fortune_data = self._load_fortune_data()
+        mansion = self.get_mansion(birth_date)
+        user_index = mansion["index"]
+        user_element = mansion["element"]
+
+        # 取得該月的月宿（使用月宿傍通曆）
+        month_mansion_index = self.MONTH_START_MANSION.get(month, 0)
+        month_mansion = self.mansions_data[month_mansion_index]
+
+        # 計算本命宿與月宿的關係
+        relation = self.get_relation_type(user_index, month_mansion_index)
+
+        # 基於關係類型計算基礎分數
+        base_score = relation["score"]
+
+        # 月份主題加成
+        month_theme = fortune_data["monthly_themes"].get(str(month), {})
+        theme_element = month_theme.get("element_boost", "土")
+        if user_element == theme_element:
+            base_score = min(100, base_score + 5)
+
+        # 計算各項運勢
+        random.seed(f"{birth_date.isoformat()}{year}{month}")
+
+        def calc_monthly_category(category: str) -> int:
+            cat_data = fortune_data["fortune_categories"][category]
+            cat_bonus = 8 if user_element in cat_data["favorable_elements"] else 0
+            variation = random.randint(-10, 10)
+            return max(30, min(100, base_score + cat_bonus + variation))
+
+        # 計算每週運勢
+        weekly = []
+        first_day = date(year, month, 1)
+        for week in range(4):
+            week_seed = f"{birth_date.isoformat()}{year}{month}week{week}"
+            random.seed(week_seed)
+            week_score = max(40, min(100, base_score + random.randint(-15, 15)))
+            categories = ["career", "love", "health", "wealth"]
+            focus = random.choice(categories)
+            weekly.append({
+                "week": week + 1,
+                "score": week_score,
+                "focus": fortune_data["fortune_categories"][focus]["name"]
+            })
+
+        random.seed(f"{birth_date.isoformat()}{year}{month}")
+
+        return {
+            "year": year,
+            "month": month,
+            "month_mansion": {
+                "name_jp": month_mansion["name_jp"],
+                "reading": month_mansion["reading"],
+                "index": month_mansion_index,
+                "element": month_mansion["element"]
+            },
+            "your_mansion": {
+                "name_jp": mansion["name_jp"],
+                "reading": mansion["reading"],
+                "element": user_element,
+                "index": user_index
+            },
+            "relation": {
+                "type": relation["type"],
+                "name": relation["name"],
+                "reading": relation.get("reading", ""),
+                "description": relation["description"]
+            },
+            "theme": {
+                "title": month_theme.get("theme", ""),
+                "focus": month_theme.get("focus", ""),
+                "element_boost": theme_element
+            },
+            "fortune": {
+                "overall": base_score,
+                "career": calc_monthly_category("career"),
+                "love": calc_monthly_category("love"),
+                "health": calc_monthly_category("health"),
+                "wealth": calc_monthly_category("wealth")
+            },
+            "weekly": weekly,
+            "advice": f"本月為{relation['name']}月，{relation['advice']}"
+        }
+
+    def calculate_yearly_fortune(self, birth_date: date, year: int) -> dict:
+        """
+        計算每年運勢
+
+        Args:
+            birth_date: 出生日期
+            year: 年份
+
+        Returns:
+            每年運勢資料
+        """
+        import random
+
+        fortune_data = self._load_fortune_data()
+        mansion = self.get_mansion(birth_date)
+        user_index = mansion["index"]
+        user_element = mansion["element"]
+
+        # 取得該年的天干地支
+        year_info = None
+        for yc in fortune_data["year_cycle"]:
+            if yc["year"] == year:
+                year_info = yc
+                break
+
+        # 如果找不到，計算
+        if not year_info:
+            stems = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"]
+            branches = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
+            stem_idx = (year - 4) % 10
+            branch_idx = (year - 4) % 12
+            year_info = {
+                "year": year,
+                "stem": stems[stem_idx],
+                "branch": branches[branch_idx]
+            }
+
+        stem = year_info["stem"]
+        branch = year_info["branch"]
+
+        stem_data = fortune_data["heavenly_stems"].get(stem, {})
+        zodiac_data = fortune_data["yearly_zodiac"].get(branch, {})
+
+        # 計算年運基礎分數
+        year_element = stem_data.get("element", "土")
+        zodiac_element = zodiac_data.get("element", "土")
+
+        # 元素關係
+        _, stem_bonus = self._get_element_relation(user_element, year_element)
+        _, zodiac_bonus = self._get_element_relation(user_element, zodiac_element)
+
+        base_score = 70 + (stem_bonus + zodiac_bonus) // 2
+
+        # 檢查是否犯太歲
+        warnings = []
+        mansion_range = zodiac_data.get("mansion_range", [])
+        if user_index in mansion_range:
+            warnings.append({
+                "type": "tai_sui",
+                "name": "犯太歲",
+                "reading": "はんたいさい",
+                "description": f"本命宿與{zodiac_data['name']}年太歲相沖，需要特別注意",
+                "advice": "宜安太歲、多行善事、保持低調"
+            })
+            base_score = max(50, base_score - 10)
+
+        # 計算每月趨勢
+        random.seed(f"{birth_date.isoformat()}{year}")
+        monthly_trend = []
+        for m in range(1, 13):
+            month_score = max(40, min(100, base_score + random.randint(-20, 20)))
+            monthly_trend.append({
+                "month": m,
+                "score": month_score
+            })
+
+        # 找出機會月份（分數最高的 3 個月）
+        sorted_months = sorted(monthly_trend, key=lambda x: x["score"], reverse=True)
+        opportunities = []
+        for m in sorted_months[:3]:
+            month_name = f"{m['month']}月"
+            theme = fortune_data["monthly_themes"].get(str(m["month"]), {})
+            opportunities.append(f"{month_name}適合{theme.get('focus', '發展')}")
+
+        # 各項運勢
+        random.seed(f"{birth_date.isoformat()}{year}categories")
+
+        def calc_yearly_category(category: str) -> int:
+            cat_data = fortune_data["fortune_categories"][category]
+            cat_bonus = 10 if user_element in cat_data["favorable_elements"] else 0
+            year_boost = 5 if year_element in cat_data["favorable_elements"] else 0
+            variation = random.randint(-12, 12)
+            return max(35, min(100, base_score + cat_bonus + year_boost + variation))
+
+        # 年度建議
+        if base_score >= 80:
+            advice = f"{stem}{branch}年對{mansion['name_jp']}而言是大展身手的好年，把握機會積極行動！"
+        elif base_score >= 65:
+            advice = f"{stem}{branch}年運勢平穩，適合穩紮穩打、累積實力。"
+        elif base_score >= 50:
+            advice = f"{stem}{branch}年需要謹慎，避免冒進，多聽取他人意見。"
+        else:
+            advice = f"{stem}{branch}年運勢較為挑戰，保持低調、韜光養晦為上策。"
+
+        return {
+            "year": year,
+            "stem": {
+                "character": stem,
+                "reading": stem_data.get("reading", ""),
+                "element": year_element,
+                "yin_yang": stem_data.get("yin_yang", "")
+            },
+            "branch": {
+                "character": branch,
+                "name": zodiac_data.get("name", ""),
+                "reading": zodiac_data.get("reading", ""),
+                "element": zodiac_element
+            },
+            "your_mansion": {
+                "name_jp": mansion["name_jp"],
+                "reading": mansion["reading"],
+                "element": user_element,
+                "index": user_index
+            },
+            "fortune": {
+                "overall": base_score,
+                "career": calc_yearly_category("career"),
+                "love": calc_yearly_category("love"),
+                "health": calc_yearly_category("health"),
+                "wealth": calc_yearly_category("wealth")
+            },
+            "monthly_trend": monthly_trend,
+            "opportunities": opportunities,
+            "warnings": warnings,
+            "advice": advice
+        }
+
 
 # 全域實例
 sukuyodo_service = SukuyodoService()

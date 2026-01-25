@@ -248,6 +248,114 @@ def find_compatible_mansions(
     }
 
 
+@router.get("/fortune/daily/{target_date}")
+def get_daily_fortune(
+    target_date: str,
+    birth_date: str,
+    session: Session = Depends(get_session)
+):
+    """
+    取得每日運勢
+
+    Args:
+        target_date: 要查詢的日期，格式 YYYY-MM-DD
+        birth_date: 出生日期，格式 YYYY-MM-DD（Query parameter）
+    """
+    try:
+        target = date.fromisoformat(target_date)
+        birth = date.fromisoformat(birth_date)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="日期格式錯誤，請使用 YYYY-MM-DD"
+        )
+
+    result = sukuyodo_service.calculate_daily_fortune(birth, target)
+
+    stats_service.log_usage(session, Features.SUKUYODO_LOOKUP)
+
+    return {
+        "success": True,
+        "data": result
+    }
+
+
+@router.get("/fortune/monthly/{year}/{month}")
+def get_monthly_fortune(
+    year: int,
+    month: int,
+    birth_date: str,
+    session: Session = Depends(get_session)
+):
+    """
+    取得每月運勢
+
+    Args:
+        year: 年份
+        month: 月份 (1-12)
+        birth_date: 出生日期，格式 YYYY-MM-DD（Query parameter）
+    """
+    if month < 1 or month > 12:
+        raise HTTPException(
+            status_code=400,
+            detail="月份必須在 1-12 之間"
+        )
+
+    try:
+        birth = date.fromisoformat(birth_date)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="日期格式錯誤，請使用 YYYY-MM-DD"
+        )
+
+    result = sukuyodo_service.calculate_monthly_fortune(birth, year, month)
+
+    stats_service.log_usage(session, Features.SUKUYODO_LOOKUP)
+
+    return {
+        "success": True,
+        "data": result
+    }
+
+
+@router.get("/fortune/yearly/{year}")
+def get_yearly_fortune(
+    year: int,
+    birth_date: str,
+    session: Session = Depends(get_session)
+):
+    """
+    取得每年運勢
+
+    Args:
+        year: 年份
+        birth_date: 出生日期，格式 YYYY-MM-DD（Query parameter）
+    """
+    if year < 1900 or year > 2100:
+        raise HTTPException(
+            status_code=400,
+            detail="年份必須在 1900-2100 之間"
+        )
+
+    try:
+        birth = date.fromisoformat(birth_date)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="日期格式錯誤，請使用 YYYY-MM-DD"
+        )
+
+    result = sukuyodo_service.calculate_yearly_fortune(birth, year)
+
+    stats_service.log_usage(session, Features.SUKUYODO_LOOKUP)
+
+    return {
+        "success": True,
+        "data": result
+    }
+
+
 @router.get("/formula")
 async def get_formula_explanation():
     """
