@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
+import { useProfile } from '../stores/profile'
 
 interface Planet {
   planet: string
@@ -32,8 +33,35 @@ interface SkySummary {
   planet_positions: Planet[]
 }
 
+interface CompatibilityResult {
+  sign1_name: string
+  sign2_name: string
+  overall_score: number
+  aspect: {
+    name: string
+    harmony: number
+    desc: string
+  }
+  element_compatibility: {
+    element1: string
+    element2: string
+    score: number
+    desc: string
+  }
+  sky_influence: {
+    influences: string[]
+    venus_retrograde: boolean
+    mercury_retrograde: boolean
+  }
+  advice: string
+}
+
+const { profile, isProfileSet, myZodiac, primaryPartner, getPartnerZodiac } = useProfile()
+
 const summary = ref<SkySummary | null>(null)
+const compatibility = ref<CompatibilityResult | null>(null)
 const loading = ref(true)
+const loadingCompat = ref(false)
 const error = ref('')
 
 const apiUrl = import.meta.env.VITE_API_URL || 'https://dashastro-api.onrender.com'
@@ -51,7 +79,42 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+
+  // 如果有設定檔案，載入配對分析
+  if (isProfileSet.value && primaryPartner.value) {
+    await loadCompatibility()
+  }
 })
+
+// 監聽主要對象變化
+watch(primaryPartner, async (newPartner) => {
+  if (newPartner && isProfileSet.value) {
+    await loadCompatibility()
+  }
+})
+
+async function loadCompatibility() {
+  if (!profile.value.zodiacCode || !primaryPartner.value) return
+
+  loadingCompat.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/compatibility/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sign1: profile.value.zodiacCode,
+        sign2: primaryPartner.value.zodiacCode
+      })
+    })
+    if (res.ok) {
+      compatibility.value = await res.json()
+    }
+  } catch (e) {
+    console.error('載入配對分析失敗')
+  } finally {
+    loadingCompat.value = false
+  }
+}
 
 const elementColors: Record<string, string> = {
   fire: '#E85D4C',
@@ -65,6 +128,64 @@ const elementNames: Record<string, string> = {
   earth: '土象',
   air: '風象',
   water: '水象'
+}
+
+// 判斷行星是否在用戶的星座
+const myPlanets = computed(() => {
+  if (!summary.value || !profile.value.zodiacCode) return []
+  return summary.value.planet_positions.filter(p => p.sign_code === profile.value.zodiacCode)
+})
+
+const partnerPlanets = computed(() => {
+  if (!summary.value || !primaryPartner.value) return []
+  return summary.value.planet_positions.filter(p => p.sign_code === primaryPartner.value!.zodiacCode)
+})
+
+// 生成個人化天象解讀
+const personalizedInsight = computed(() => {
+  if (!summary.value || !isProfileSet.value) return null
+
+  const insights: string[] = []
+
+  // 月相影響
+  const moonPhase = summary.value.moon_phase.phase_name_zh
+  if (moonPhase.includes('滿月')) {
+    insights.push('滿月時期情感能量達到高峰，適合表達心意')
+  } else if (moonPhase.includes('新月')) {
+    insights.push('新月時期是開啟新關係的好時機')
+  }
+
+  // 逆行影響
+  const venus = summary.value.retrograde_planets.find(p => p.planet === 'venus')
+  const mercury = summary.value.retrograde_planets.find(p => p.planet === 'mercury')
+
+  if (venus) {
+    insights.push('金星逆行中，舊情人可能出現，感情需審慎')
+  }
+  if (mercury) {
+    insights.push('水星逆行中，溝通容易出錯，表達時多確認')
+  }
+
+  // 行星在用戶星座
+  if (myPlanets.value.length > 0) {
+    const names = myPlanets.value.map(p => p.name_zh).join('、')
+    insights.push(`${names}正經過你的星座，個人能量充沛`)
+  }
+
+  // 行星在對象星座
+  if (partnerPlanets.value.length > 0 && primaryPartner.value) {
+    const names = partnerPlanets.value.map(p => p.name_zh).join('、')
+    const zodiac = getPartnerZodiac(primaryPartner.value)?.name || ''
+    insights.push(`${names}正經過${zodiac}，對方近期狀態活躍`)
+  }
+
+  return insights.length > 0 ? insights : ['今日天象平穩，適合穩定發展']
+})
+
+function getScoreStars(score: number): string {
+  const full = Math.floor(score)
+  const half = score % 1 >= 0.5 ? 1 : 0
+  return '\u2605'.repeat(full) + (half ? '\u2606' : '') + '\u2606'.repeat(5 - full - half)
 }
 </script>
 
@@ -88,6 +209,72 @@ const elementNames: Record<string, string> = {
       </div>
 
       <div v-else-if="summary" class="sky-content">
+        <!-- 個人化分析區塊 -->
+        <section v-if="isProfileSet" class="personal-section card card-gold">
+          <div class="personal-header">
+            <span class="my-zodiac">{{ myZodiac?.symbol }}</span>
+            <h2>{{ myZodiac?.name }} 今日天象解讀</h2>
+          </div>
+
+          <ul class="insight-list">
+            <li v-for="(insight, i) in personalizedInsight" :key="i">
+              {{ insight }}
+            </li>
+          </ul>
+
+          <!-- 配對分析 -->
+          <div v-if="primaryPartner && compatibility" class="compat-section">
+            <div class="compat-header">
+              <span class="zodiac-pair">
+                {{ myZodiac?.symbol }} &hearts; {{ getPartnerZodiac(primaryPartner)?.symbol }}
+              </span>
+              <span class="compat-score">{{ getScoreStars(compatibility.overall_score) }}</span>
+            </div>
+
+            <p class="compat-name">
+              與{{ primaryPartner.nickname || getPartnerZodiac(primaryPartner)?.name }}的今日互動
+            </p>
+
+            <div class="compat-details">
+              <span class="compat-aspect">{{ compatibility.aspect.name }}</span>
+              <span class="compat-element">
+                {{ elementNames[compatibility.element_compatibility.element1] }} &times;
+                {{ elementNames[compatibility.element_compatibility.element2] }}
+              </span>
+            </div>
+
+            <p class="compat-advice">{{ compatibility.advice }}</p>
+
+            <div v-if="compatibility.sky_influence.influences.length > 0" class="sky-notes">
+              <p v-for="(note, i) in compatibility.sky_influence.influences" :key="i" class="sky-note">
+                <sl-icon name="info-circle"></sl-icon>
+                {{ note }}
+              </p>
+            </div>
+          </div>
+
+          <div v-else-if="loadingCompat" class="loading-compat">
+            <sl-spinner></sl-spinner>
+            載入配對分析中...
+          </div>
+
+          <div v-else-if="!primaryPartner" class="no-partner">
+            <router-link to="/profile" class="add-partner-link">
+              <sl-icon name="plus-circle"></sl-icon>
+              新增關注對象，查看配對分析
+            </router-link>
+          </div>
+        </section>
+
+        <!-- 未設定檔案提示 -->
+        <section v-else class="setup-prompt card">
+          <sl-icon name="person-plus"></sl-icon>
+          <p>設定你的星座，獲得個人化天象解讀</p>
+          <router-link to="/profile" class="btn-gold">
+            設定我的資料
+          </router-link>
+        </section>
+
         <div class="highlight-cards">
           <div class="highlight-card card">
             <div class="highlight-icon">&#127769;</div>
@@ -155,11 +342,19 @@ const elementNames: Record<string, string> = {
             <div
               v-for="planet in summary.planet_positions"
               :key="planet.planet"
-              class="planet-card card"
+              :class="[
+                'planet-card card',
+                {
+                  'my-sign': planet.sign_code === profile.zodiacCode,
+                  'partner-sign': primaryPartner && planet.sign_code === primaryPartner.zodiacCode
+                }
+              ]"
             >
               <div class="planet-name">{{ planet.name_zh }}</div>
               <div class="planet-sign">{{ planet.sign_name }}</div>
               <div class="planet-degree">{{ planet.degree.toFixed(1) }}°</div>
+              <div v-if="planet.sign_code === profile.zodiacCode" class="planet-tag my">我</div>
+              <div v-else-if="primaryPartner && planet.sign_code === primaryPartner.zodiacCode" class="planet-tag partner">TA</div>
             </div>
           </div>
         </section>
@@ -193,6 +388,156 @@ const elementNames: Record<string, string> = {
   padding: var(--space-12);
 }
 
+/* 個人化區塊 */
+.personal-section {
+  margin-bottom: var(--space-6);
+  padding: var(--space-6);
+}
+
+.personal-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.my-zodiac {
+  font-size: 2rem;
+}
+
+.personal-header h2 {
+  font-size: 1.1rem;
+  color: var(--stellar-gold);
+}
+
+.insight-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-5) 0;
+}
+
+.insight-list li {
+  padding: var(--space-2) 0;
+  padding-left: var(--space-4);
+  border-left: 2px solid var(--border-gold);
+  margin-bottom: var(--space-2);
+  color: var(--text-secondary);
+}
+
+/* 配對區塊 */
+.compat-section {
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border-gold);
+}
+
+.compat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+
+.zodiac-pair {
+  font-size: 1.5rem;
+}
+
+.compat-score {
+  color: var(--stellar-gold);
+  font-size: 1.1rem;
+  letter-spacing: 2px;
+}
+
+.compat-name {
+  font-weight: 500;
+  margin-bottom: var(--space-3);
+}
+
+.compat-details {
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.compat-aspect,
+.compat-element {
+  padding: var(--space-1) var(--space-3);
+  background: var(--astral-deep);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.compat-advice {
+  color: var(--text-primary);
+  line-height: 1.7;
+  margin-bottom: var(--space-4);
+}
+
+.sky-notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sky-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.loading-compat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text-muted);
+  padding: var(--space-4) 0;
+}
+
+.no-partner {
+  padding-top: var(--space-4);
+  border-top: 1px dashed var(--border-gold);
+}
+
+.add-partner-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  color: var(--text-muted);
+  padding: var(--space-3);
+}
+
+.add-partner-link:hover {
+  color: var(--stellar-gold);
+}
+
+/* 設定提示 */
+.setup-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-8);
+  margin-bottom: var(--space-6);
+  text-align: center;
+}
+
+.setup-prompt sl-icon {
+  font-size: 2.5rem;
+  color: var(--text-muted);
+}
+
+.setup-prompt p {
+  color: var(--text-secondary);
+}
+
+.setup-prompt .btn-gold {
+  padding: var(--space-2) var(--space-6);
+}
+
+/* 高亮卡片 */
 .highlight-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -228,6 +573,7 @@ const elementNames: Record<string, string> = {
   color: var(--text-muted);
 }
 
+/* 元素分布 */
 .element-section {
   margin-bottom: var(--space-8);
 }
@@ -279,6 +625,7 @@ const elementNames: Record<string, string> = {
   color: var(--text-muted);
 }
 
+/* 行星 */
 .planets-section h2 {
   margin-bottom: var(--space-6);
 }
@@ -291,8 +638,17 @@ const elementNames: Record<string, string> = {
 }
 
 .planet-card {
+  position: relative;
   text-align: center;
   padding: var(--space-4);
+}
+
+.planet-card.my-sign {
+  border-color: var(--stellar-gold);
+}
+
+.planet-card.partner-sign {
+  border-color: var(--astral-light);
 }
 
 .planet-name {
@@ -309,6 +665,25 @@ const elementNames: Record<string, string> = {
 .planet-degree {
   font-size: 0.8rem;
   color: var(--text-muted);
+}
+
+.planet-tag {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.planet-tag.my {
+  background: var(--stellar-gold);
+  color: var(--cosmos-night);
+}
+
+.planet-tag.partner {
+  background: var(--astral-light);
+  color: var(--cosmos-night);
 }
 
 .data-source {

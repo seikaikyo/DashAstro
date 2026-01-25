@@ -32,6 +32,11 @@ const router = createRouter({
       path: '/sky',
       name: 'sky',
       component: () => import('../views/SkyView.vue')
+    },
+    {
+      path: '/profile',
+      name: 'profile',
+      component: () => import('../views/ProfileView.vue')
     }
   ]
 })
