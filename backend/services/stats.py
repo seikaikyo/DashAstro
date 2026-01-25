@@ -16,7 +16,7 @@ class StatsService:
         stats = session.exec(
             select(UsageStats)
             .where(UsageStats.feature == feature)
-            .where(UsageStats.date == today)
+            .where(UsageStats.stat_date == today)
         ).first()
 
         if stats:
@@ -27,7 +27,7 @@ class StatsService:
             # 建立新記錄
             stats = UsageStats(
                 feature=feature,
-                date=today,
+                stat_date=today,
                 count=1
             )
             session.add(stats)
@@ -45,20 +45,20 @@ class StatsService:
         start_date = end_date - timedelta(days=days - 1)
 
         query = select(UsageStats).where(
-            UsageStats.date >= start_date,
-            UsageStats.date <= end_date
+            UsageStats.stat_date >= start_date,
+            UsageStats.stat_date <= end_date
         )
 
         if feature:
             query = query.where(UsageStats.feature == feature)
 
-        query = query.order_by(UsageStats.date.desc(), UsageStats.feature)
+        query = query.order_by(UsageStats.stat_date.desc(), UsageStats.feature)
         results = session.exec(query).all()
 
         return [
             {
                 "feature": r.feature,
-                "date": r.date.isoformat(),
+                "date": r.stat_date.isoformat(),
                 "count": r.count
             }
             for r in results
@@ -71,8 +71,8 @@ class StatsService:
 
         results = session.exec(
             select(UsageStats).where(
-                UsageStats.date >= start_date,
-                UsageStats.date <= end_date
+                UsageStats.stat_date >= start_date,
+                UsageStats.stat_date <= end_date
             )
         ).all()
 
@@ -88,7 +88,7 @@ class StatsService:
 
         # 今日統計
         today_results = session.exec(
-            select(UsageStats).where(UsageStats.date == end_date)
+            select(UsageStats).where(UsageStats.stat_date == end_date)
         ).all()
 
         today_total = sum(r.count for r in today_results)
@@ -119,13 +119,13 @@ class StatsService:
         results = session.exec(
             select(UsageStats)
             .where(UsageStats.feature == feature)
-            .where(UsageStats.date >= start_date)
-            .where(UsageStats.date <= end_date)
-            .order_by(UsageStats.date)
+            .where(UsageStats.stat_date >= start_date)
+            .where(UsageStats.stat_date <= end_date)
+            .order_by(UsageStats.stat_date)
         ).all()
 
         # 建立完整日期序列（補零）
-        date_counts = {r.date: r.count for r in results}
+        date_counts = {r.stat_date: r.count for r in results}
         trend = []
 
         current = start_date

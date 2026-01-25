@@ -351,6 +351,35 @@ const myZodiacSymbol = computed(() => {
                   <div class="advice-icon">&#128151;</div>
                   <h3>感情運</h3>
                   <p>{{ monthlyHoroscope.love_advice }}</p>
+
+                  <!-- 配對分析 (月運勢) -->
+                  <div v-if="isMyZodiac && profile.partners.length > 0" class="compat-inline">
+                    <PartnerSelector v-model="selectedPartner" />
+
+                    <div v-if="selectedPartner && compatibility">
+                      <div class="compat-header">
+                        <span class="compat-pair">
+                          {{ myZodiacSymbol }} &hearts; {{ getPartnerZodiac(selectedPartner)?.symbol }}
+                        </span>
+                        <span class="compat-score">{{ compatScoreStars(compatibility.overall_score) }}</span>
+                      </div>
+                      <p class="compat-partner">
+                        與{{ selectedPartner.nickname || getPartnerZodiac(selectedPartner)?.name }}的本月互動
+                      </p>
+                      <p class="compat-advice">{{ compatibility.advice }}</p>
+                    </div>
+
+                    <div v-else-if="loadingCompat" class="compat-loading">
+                      <sl-spinner></sl-spinner>
+                    </div>
+                  </div>
+
+                  <div v-else-if="isMyZodiac && profile.partners.length === 0" class="compat-prompt">
+                    <router-link to="/profile">
+                      <sl-icon name="plus-circle"></sl-icon>
+                      新增關注對象，查看配對分析
+                    </router-link>
+                  </div>
                 </section>
 
                 <section v-if="monthlyHoroscope.career_advice" class="advice-card card">
