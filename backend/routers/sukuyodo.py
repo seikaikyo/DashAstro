@@ -199,6 +199,55 @@ async def get_metadata():
     return sukuyodo_service.metadata
 
 
+@router.get("/compatibility-finder/{date_str}")
+def find_compatible_mansions(
+    date_str: str,
+    session: Session = Depends(get_session)
+):
+    """
+    尋找最佳配對與需避免的本命宿
+
+    根據西曆生日計算本命宿，並列出：
+    - 榮親（えいしん）：最適合結婚，95 分
+    - 業胎（ぎょうたい）：前世之緣，90 分
+    - 安壊（あんかい）：需要避免，55 分
+
+    Args:
+        date_str: 西曆生日，格式 YYYY-MM-DD
+    """
+    try:
+        birth_date = date.fromisoformat(date_str)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="日期格式錯誤，請使用 YYYY-MM-DD"
+        )
+
+    # 驗證日期範圍
+    today = date.today()
+    if birth_date > today:
+        raise HTTPException(
+            status_code=400,
+            detail="生日不可為未來日期"
+        )
+
+    if birth_date.year < 1900:
+        raise HTTPException(
+            status_code=400,
+            detail="僅支援 1900 年後的日期"
+        )
+
+    result = sukuyodo_service.find_compatible_mansions(birth_date)
+
+    # 記錄使用統計
+    stats_service.log_usage(session, Features.SUKUYODO_LOOKUP)
+
+    return {
+        "success": True,
+        "data": result
+    }
+
+
 @router.get("/formula")
 async def get_formula_explanation():
     """

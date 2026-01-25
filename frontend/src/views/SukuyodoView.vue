@@ -73,6 +73,44 @@ interface Metadata {
   method_reading: string
 }
 
+interface CompatibleMansion {
+  name_jp: string
+  name_zh: string
+  reading: string
+  index: number
+  element: string
+  element_reading: string
+  keywords: string[]
+  personality: string
+}
+
+interface CompatibilityCategory {
+  relation: string
+  reading: string
+  score: number
+  description: string
+  mansions: CompatibleMansion[]
+}
+
+interface CompatibilityFinderResult {
+  your_mansion: {
+    name_jp: string
+    name_zh: string
+    reading: string
+    index: number
+    element: string
+    lunar_date: {
+      year: number
+      month: number
+      day: number
+      display: string
+    }
+  }
+  best_for_marriage: CompatibilityCategory
+  past_life_connection: CompatibilityCategory
+  should_avoid: CompatibilityCategory
+}
+
 const apiUrl = import.meta.env.VITE_API_URL || 'https://dashastro-api.onrender.com'
 
 // 本命宿查詢
@@ -95,6 +133,11 @@ const metadata = ref<Metadata | null>(null)
 
 // 顯示公式說明
 const showFormula = ref(false)
+
+// 相性配對查詢
+const compatFinder = ref<CompatibilityFinderResult | null>(null)
+const finderLoading = ref(false)
+const selectedMansion = ref<CompatibleMansion | null>(null)
 
 // 元素顏色
 const elementColors: Record<string, string> = {
@@ -130,6 +173,8 @@ const lookupMansion = async () => {
   lookupError.value = ''
   mansion.value = null
   showDetails.value = false
+  compatFinder.value = null
+  selectedMansion.value = null
 
   try {
     const res = await fetch(`${apiUrl}/api/sukuyodo/mansion/${birthDate.value}`)
@@ -137,6 +182,8 @@ const lookupMansion = async () => {
       const data = await res.json()
       if (data.success) {
         mansion.value = data.data
+        // 同時查詢相容星宿
+        fetchCompatibleMansions()
       } else {
         lookupError.value = data.error || '查詢失敗'
       }
@@ -148,6 +195,26 @@ const lookupMansion = async () => {
     lookupError.value = '無法連線到伺服器'
   } finally {
     lookupLoading.value = false
+  }
+}
+
+const fetchCompatibleMansions = async () => {
+  if (!birthDate.value) return
+
+  finderLoading.value = true
+
+  try {
+    const res = await fetch(`${apiUrl}/api/sukuyodo/compatibility-finder/${birthDate.value}`)
+    if (res.ok) {
+      const data = await res.json()
+      if (data.success) {
+        compatFinder.value = data.data
+      }
+    }
+  } catch (e) {
+    console.error('Failed to fetch compatible mansions')
+  } finally {
+    finderLoading.value = false
   }
 }
 
@@ -281,6 +348,104 @@ const getScoreLevel = (score: number) => {
             <div class="detail-item">
               <h4>健康提醒</h4>
               <p>{{ mansion.health }}</p>
+            </div>
+          </div>
+
+          <!-- 相性配對查詢結果 -->
+          <div v-if="compatFinder" class="compat-finder">
+            <h3 class="finder-title">尋找你的最佳配對</h3>
+
+            <!-- 最適合結婚 -->
+            <div class="finder-category marriage">
+              <div class="category-header">
+                <span class="category-icon">&#128141;</span>
+                <ruby class="category-name">
+                  {{ compatFinder.best_for_marriage.relation }}<rp>(</rp><rt>{{ compatFinder.best_for_marriage.reading }}</rt><rp>)</rp>
+                </ruby>
+                <span class="category-score">{{ compatFinder.best_for_marriage.score }} 分</span>
+              </div>
+              <p class="category-desc">{{ compatFinder.best_for_marriage.description }}</p>
+              <div class="mansion-grid">
+                <button
+                  v-for="m in compatFinder.best_for_marriage.mansions"
+                  :key="m.index"
+                  class="mansion-chip"
+                  :class="{ active: selectedMansion?.index === m.index }"
+                  @click="selectedMansion = selectedMansion?.index === m.index ? null : m"
+                >
+                  <ruby>{{ m.name_jp }}<rp>(</rp><rt>{{ m.reading }}</rt><rp>)</rp></ruby>
+                  <span class="chip-element" :style="{ color: elementColors[m.element] }">{{ m.element }}</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 前世之緣 -->
+            <div class="finder-category past-life">
+              <div class="category-header">
+                <span class="category-icon">&#128302;</span>
+                <ruby class="category-name">
+                  {{ compatFinder.past_life_connection.relation }}<rp>(</rp><rt>{{ compatFinder.past_life_connection.reading }}</rt><rp>)</rp>
+                </ruby>
+                <span class="category-score">{{ compatFinder.past_life_connection.score }} 分</span>
+              </div>
+              <p class="category-desc">{{ compatFinder.past_life_connection.description }}</p>
+              <div class="mansion-grid">
+                <button
+                  v-for="m in compatFinder.past_life_connection.mansions"
+                  :key="m.index"
+                  class="mansion-chip"
+                  :class="{ active: selectedMansion?.index === m.index }"
+                  @click="selectedMansion = selectedMansion?.index === m.index ? null : m"
+                >
+                  <ruby>{{ m.name_jp }}<rp>(</rp><rt>{{ m.reading }}</rt><rp>)</rp></ruby>
+                  <span class="chip-element" :style="{ color: elementColors[m.element] }">{{ m.element }}</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 需要避免 -->
+            <div class="finder-category avoid">
+              <div class="category-header">
+                <span class="category-icon">&#9888;</span>
+                <ruby class="category-name">
+                  {{ compatFinder.should_avoid.relation }}<rp>(</rp><rt>{{ compatFinder.should_avoid.reading }}</rt><rp>)</rp>
+                </ruby>
+                <span class="category-score warning">{{ compatFinder.should_avoid.score }} 分</span>
+              </div>
+              <p class="category-desc">{{ compatFinder.should_avoid.description }}</p>
+              <div class="mansion-grid">
+                <button
+                  v-for="m in compatFinder.should_avoid.mansions"
+                  :key="m.index"
+                  class="mansion-chip danger"
+                  :class="{ active: selectedMansion?.index === m.index }"
+                  @click="selectedMansion = selectedMansion?.index === m.index ? null : m"
+                >
+                  <ruby>{{ m.name_jp }}<rp>(</rp><rt>{{ m.reading }}</rt><rp>)</rp></ruby>
+                  <span class="chip-element" :style="{ color: elementColors[m.element] }">{{ m.element }}</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 選中的宿位詳細資訊 -->
+            <div v-if="selectedMansion" class="selected-mansion-detail">
+              <div class="detail-header">
+                <ruby class="detail-name">
+                  {{ selectedMansion.name_jp }}<rp>(</rp><rt>{{ selectedMansion.reading }}</rt><rp>)</rp>
+                </ruby>
+                <span class="detail-element" :style="{ borderColor: elementColors[selectedMansion.element], color: elementColors[selectedMansion.element] }">
+                  {{ selectedMansion.element }}
+                </span>
+              </div>
+              <div class="detail-keywords">
+                <span v-for="kw in selectedMansion.keywords" :key="kw" class="keyword-tag">{{ kw }}</span>
+              </div>
+              <p class="detail-personality">{{ selectedMansion.personality }}</p>
+            </div>
+
+            <div v-if="finderLoading" class="finder-loading">
+              <sl-spinner></sl-spinner>
+              <span>載入中...</span>
             </div>
           </div>
         </div>
@@ -1180,6 +1345,176 @@ ruby rp {
   line-height: 1.6;
 }
 
+/* 相性配對查詢 */
+.compat-finder {
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--border-default);
+}
+
+.finder-title {
+  text-align: center;
+  color: var(--stellar-gold);
+  margin-bottom: var(--space-6);
+  font-size: 1.2rem;
+}
+
+.finder-category {
+  margin-bottom: var(--space-6);
+  padding: var(--space-4);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-md);
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.category-icon {
+  font-size: 1.2rem;
+}
+
+.category-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.finder-category.marriage .category-name {
+  color: #4A9B5A;
+}
+
+.finder-category.past-life .category-name {
+  color: #9B7FCF;
+}
+
+.finder-category.avoid .category-name {
+  color: #E89B3C;
+}
+
+.category-score {
+  margin-left: auto;
+  padding: var(--space-1) var(--space-3);
+  background: var(--cosmos-twilight);
+  border-radius: var(--radius-full);
+  font-size: 0.85rem;
+  color: var(--stellar-gold);
+}
+
+.category-score.warning {
+  color: #E89B3C;
+}
+
+.category-desc {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: var(--space-4);
+}
+
+.mansion-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.mansion-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--cosmos-twilight);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.mansion-chip ruby rt {
+  font-size: 0.6em;
+}
+
+.mansion-chip:hover {
+  border-color: var(--stellar-gold);
+}
+
+.mansion-chip.active {
+  border-color: var(--stellar-gold);
+  background: rgba(199, 163, 101, 0.15);
+}
+
+.mansion-chip.danger {
+  border-color: rgba(232, 93, 76, 0.3);
+}
+
+.mansion-chip.danger:hover,
+.mansion-chip.danger.active {
+  border-color: #E85D4C;
+  background: rgba(232, 93, 76, 0.1);
+}
+
+.chip-element {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.selected-mansion-detail {
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  background: var(--cosmos-twilight);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--stellar-gold);
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.detail-name {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--stellar-gold);
+}
+
+.detail-name rt {
+  font-size: 0.4em;
+}
+
+.detail-element {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid;
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+}
+
+.detail-keywords {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.detail-personality {
+  line-height: 1.7;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.finder-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  color: var(--text-muted);
+}
+
 @media (max-width: 600px) {
   .form-row {
     flex-direction: column;
@@ -1213,6 +1548,16 @@ ruby rp {
 
   .calculation-info {
     flex-direction: column;
+  }
+
+  .category-header {
+    flex-wrap: wrap;
+  }
+
+  .category-score {
+    width: 100%;
+    margin-top: var(--space-2);
+    text-align: center;
   }
 }
 </style>

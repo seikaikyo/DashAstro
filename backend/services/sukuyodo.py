@@ -361,6 +361,88 @@ class SukuyodoService:
         """取得所有 27 宿資料"""
         return self.mansions_data
 
+    def find_compatible_mansions(self, solar_date: date) -> dict:
+        """
+        根據生日找出最佳配對與需要避免的本命宿
+
+        Args:
+            solar_date: 西曆生日
+
+        Returns:
+            包含榮親、業胎、安壊三類配對宿位的資料
+        """
+        mansion = self.get_mansion(solar_date)
+        user_index = mansion["index"]
+
+        # 各關係類型的距離定義
+        COMPATIBILITY_TYPES = {
+            "best_for_marriage": {
+                "relation": "榮親",
+                "reading": "えいしん",
+                "distances": [1, 3, 10, 12, 15, 17, 24, 26],
+                "score": 95,
+                "description": "最適合結婚的對象，相處融洽、互相扶持"
+            },
+            "past_life_connection": {
+                "relation": "業胎",
+                "reading": "ぎょうたい",
+                "distances": [9, 18],
+                "score": 90,
+                "description": "前世之緣，一見如故、心有靈犀"
+            },
+            "should_avoid": {
+                "relation": "安壊",
+                "reading": "あんかい",
+                "distances": [4, 6, 21, 23],
+                "score": 55,
+                "description": "超有吸引力但危險，容易互相傷害"
+            }
+        }
+
+        result = {
+            "your_mansion": {
+                "name_jp": mansion["name_jp"],
+                "name_zh": mansion["name_zh"],
+                "reading": mansion["reading"],
+                "index": user_index,
+                "element": mansion["element"],
+                "lunar_date": mansion["lunar_date"]
+            }
+        }
+
+        # 計算各類型的配對宿位
+        for key, config in COMPATIBILITY_TYPES.items():
+            indices = set()
+            for d in config["distances"]:
+                indices.add((user_index + d) % 27)
+                indices.add((user_index - d + 27) % 27)
+
+            # 取得這些宿位的詳細資料
+            mansions = []
+            for idx in sorted(indices):
+                m = self.mansions_data[idx]
+                elem_data = self.elements_data.get(m["element"], {})
+                mansions.append({
+                    "name_jp": m["name_jp"],
+                    "name_zh": m["name_zh"],
+                    "reading": m["reading"],
+                    "index": idx,
+                    "element": m["element"],
+                    "element_reading": elem_data.get("reading", ""),
+                    "keywords": m["keywords"],
+                    "personality": m["personality"]
+                })
+
+            result[key] = {
+                "relation": config["relation"],
+                "reading": config["reading"],
+                "score": config["score"],
+                "description": config["description"],
+                "mansions": mansions
+            }
+
+        return result
+
 
 # 全域實例
 sukuyodo_service = SukuyodoService()
