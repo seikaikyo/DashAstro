@@ -9,30 +9,38 @@ class StatsService:
     """使用統計服務"""
 
     def log_usage(self, session: Session, feature: str) -> None:
-        """記錄功能使用次數"""
-        today = date.today()
+        """記錄功能使用次數（不影響主要操作）"""
+        try:
+            today = date.today()
 
-        # 查找今日該功能的統計記錄
-        stats = session.exec(
-            select(UsageStats)
-            .where(UsageStats.feature == feature)
-            .where(UsageStats.stat_date == today)
-        ).first()
+            # 查找今日該功能的統計記錄
+            stats = session.exec(
+                select(UsageStats)
+                .where(UsageStats.feature == feature)
+                .where(UsageStats.stat_date == today)
+            ).first()
 
-        if stats:
-            # 更新計數
-            stats.count += 1
-            stats.updated_at = datetime.utcnow()
-        else:
-            # 建立新記錄
-            stats = UsageStats(
-                feature=feature,
-                stat_date=today,
-                count=1
-            )
-            session.add(stats)
+            if stats:
+                # 更新計數
+                stats.count += 1
+                stats.updated_at = datetime.utcnow()
+            else:
+                # 建立新記錄
+                stats = UsageStats(
+                    feature=feature,
+                    stat_date=today,
+                    count=1
+                )
+                session.add(stats)
 
-        session.commit()
+            session.commit()
+        except Exception as e:
+            # 統計失敗不影響主要功能
+            print(f"[Stats] 記錄失敗: {e}")
+            try:
+                session.rollback()
+            except:
+                pass
 
     def get_daily_stats(
         self,
