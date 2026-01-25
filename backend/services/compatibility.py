@@ -175,19 +175,19 @@ class CompatibilityService:
                 "mercury_retrograde": False
             }
 
-    # 星座特質描述
+    # 星座特質描述（用「對方」避免性別問題）
     SIGN_TRAITS = {
-        "ARI": {"trait": "衝勁與熱情", "need": "跟上他的節奏"},
-        "TAU": {"trait": "穩定與忠誠", "need": "給他安全感"},
+        "ARI": {"trait": "衝勁與熱情", "need": "跟上對方的節奏"},
+        "TAU": {"trait": "穩定與忠誠", "need": "給對方安全感"},
         "GEM": {"trait": "機智與變化", "need": "保持新鮮感與智性交流"},
         "CAN": {"trait": "溫柔與照顧", "need": "給予情感上的回應"},
-        "LEO": {"trait": "自信與慷慨", "need": "表達你的欣賞與關注"},
-        "VIR": {"trait": "細膩與務實", "need": "理解他的完美主義"},
+        "LEO": {"trait": "自信與慷慨", "need": "多表達欣賞與關注"},
+        "VIR": {"trait": "細膩與務實", "need": "理解對方的完美主義"},
         "LIB": {"trait": "優雅與和諧", "need": "維持平衡與美感"},
         "SCO": {"trait": "深情與專注", "need": "展現你的忠誠與信任"},
-        "SAG": {"trait": "樂觀與自由", "need": "給他足夠的空間"},
+        "SAG": {"trait": "樂觀與自由", "need": "給對方足夠的空間"},
         "CAP": {"trait": "穩重與責任", "need": "認真對待這段關係"},
-        "AQU": {"trait": "獨立與創新", "need": "尊重他的獨立性"},
+        "AQU": {"trait": "獨立與創新", "need": "尊重對方的獨立性"},
         "PIS": {"trait": "浪漫與直覺", "need": "給予情感共鳴與包容"},
     }
 
@@ -233,7 +233,7 @@ class CompatibilityService:
         if sky.get("venus_retrograde"):
             advice_parts.append("金星逆行期間，建議回顧關係中的問題。")
 
-        return "".join(advice_parts)
+        return "\n".join(advice_parts)
 
     def get_weekly_compatibility(
         self,
