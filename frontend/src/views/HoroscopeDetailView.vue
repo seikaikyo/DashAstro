@@ -19,6 +19,23 @@ interface WeeklyHoroscope {
   overall_score: number | null
 }
 
+interface MonthlyHoroscope {
+  zodiac_code: string
+  zodiac_name: string
+  zodiac_symbol: string
+  year: number
+  month: number
+  month_name: string
+  summary: string
+  love_advice: string | null
+  career_advice: string | null
+  health_advice: string | null
+  lucky_days: string | null
+  lucky_color: string | null
+  lucky_number: number | null
+  overall_score: number | null
+}
+
 interface CompatibilityResult {
   sign1_name: string
   sign2_name: string
@@ -45,11 +62,16 @@ interface CompatibilityResult {
 const route = useRoute()
 const { profile, isProfileSet, primaryPartner, getPartnerZodiac } = useProfile()
 
+// 週運/月運切換
+const viewMode = ref<'weekly' | 'monthly'>('weekly')
 const horoscope = ref<WeeklyHoroscope | null>(null)
+const monthlyHoroscope = ref<MonthlyHoroscope | null>(null)
 const compatibility = ref<CompatibilityResult | null>(null)
 const loading = ref(true)
+const loadingMonthly = ref(false)
 const loadingCompat = ref(false)
 const error = ref('')
+const monthlyError = ref('')
 
 // 當前選擇的對象
 const selectedPartner = ref<Partner | null>(null)
@@ -120,6 +142,32 @@ async function loadCompatibility() {
   }
 }
 
+async function loadMonthlyHoroscope() {
+  if (monthlyHoroscope.value) return // 已載入過
+
+  loadingMonthly.value = true
+  monthlyError.value = ''
+  try {
+    const res = await fetch(`${apiUrl}/api/horoscope/monthly/${code.value}`)
+    if (res.ok) {
+      monthlyHoroscope.value = await res.json()
+    } else {
+      monthlyError.value = '月運勢載入中，請稍後再試'
+    }
+  } catch (e) {
+    monthlyError.value = '無法載入月運勢'
+  } finally {
+    loadingMonthly.value = false
+  }
+}
+
+// 切換到月運時載入資料
+watch(viewMode, async (mode) => {
+  if (mode === 'monthly' && !monthlyHoroscope.value) {
+    await loadMonthlyHoroscope()
+  }
+})
+
 const scoreStars = (score: number | null) => {
   if (!score) return ''
   return '&#9733;'.repeat(score) + '&#9734;'.repeat(5 - score)
@@ -171,91 +219,172 @@ const myZodiacSymbol = computed(() => {
         <header class="detail-header">
           <span class="zodiac-symbol">{{ horoscope.zodiac_symbol }}</span>
           <h1>{{ horoscope.zodiac_name }}</h1>
-          <p class="week-info">{{ horoscope.week_start }} 當週運勢</p>
           <span v-if="isMyZodiac" class="my-badge">我的星座</span>
         </header>
 
+        <!-- 週運/月運切換 -->
+        <div class="view-tabs">
+          <button
+            :class="['tab-btn', { active: viewMode === 'weekly' }]"
+            @click="viewMode = 'weekly'"
+          >
+            本週運勢
+          </button>
+          <button
+            :class="['tab-btn', { active: viewMode === 'monthly' }]"
+            @click="viewMode = 'monthly'"
+          >
+            本月運勢
+          </button>
+        </div>
+
         <div class="detail-content">
-          <section class="summary-section card">
-            <h2>本週概要</h2>
-            <p>{{ horoscope.summary }}</p>
+          <!-- 週運勢內容 -->
+          <template v-if="viewMode === 'weekly'">
+            <section class="summary-section card">
+              <h2>{{ horoscope.week_start }} 當週運勢</h2>
+              <p>{{ horoscope.summary }}</p>
 
-            <div v-if="horoscope.overall_score" class="score">
-              <span>整體運勢</span>
-              <span class="stars" v-html="scoreStars(horoscope.overall_score)"></span>
-            </div>
-          </section>
+              <div v-if="horoscope.overall_score" class="score">
+                <span>整體運勢</span>
+                <span class="stars" v-html="scoreStars(horoscope.overall_score)"></span>
+              </div>
+            </section>
 
-          <div class="advice-grid">
-            <section v-if="horoscope.love_advice" class="advice-card card">
-              <div class="advice-icon">&#128151;</div>
-              <h3>感情運</h3>
-              <p>{{ horoscope.love_advice }}</p>
+            <div class="advice-grid">
+              <section v-if="horoscope.love_advice" class="advice-card card">
+                <div class="advice-icon">&#128151;</div>
+                <h3>感情運</h3>
+                <p>{{ horoscope.love_advice }}</p>
 
-              <!-- 配對分析 (只在用戶自己的星座顯示) -->
-              <div v-if="isMyZodiac && profile.partners.length > 0" class="compat-inline">
-                <!-- 對象選擇器 -->
-                <PartnerSelector v-model="selectedPartner" />
+                <!-- 配對分析 (只在用戶自己的星座顯示) -->
+                <div v-if="isMyZodiac && profile.partners.length > 0" class="compat-inline">
+                  <!-- 對象選擇器 -->
+                  <PartnerSelector v-model="selectedPartner" />
 
-                <div v-if="selectedPartner && compatibility">
-                  <div class="compat-header">
-                    <span class="compat-pair">
-                      {{ myZodiacSymbol }} &hearts; {{ getPartnerZodiac(selectedPartner)?.symbol }}
-                    </span>
-                    <span class="compat-score">{{ compatScoreStars(compatibility.overall_score) }}</span>
+                  <div v-if="selectedPartner && compatibility">
+                    <div class="compat-header">
+                      <span class="compat-pair">
+                        {{ myZodiacSymbol }} &hearts; {{ getPartnerZodiac(selectedPartner)?.symbol }}
+                      </span>
+                      <span class="compat-score">{{ compatScoreStars(compatibility.overall_score) }}</span>
+                    </div>
+                    <p class="compat-partner">
+                      與{{ selectedPartner.nickname || getPartnerZodiac(selectedPartner)?.name }}的本週互動
+                    </p>
+                    <p class="compat-advice">{{ compatibility.advice }}</p>
+                    <p v-if="compatibility.sky_influence?.influences?.length" class="compat-note">
+                      {{ compatibility.sky_influence.influences[0] }}
+                    </p>
                   </div>
-                  <p class="compat-partner">
-                    與{{ selectedPartner.nickname || getPartnerZodiac(selectedPartner)?.name }}的本週互動
-                  </p>
-                  <p class="compat-advice">{{ compatibility.advice }}</p>
-                  <p v-if="compatibility.sky_influence?.influences?.length" class="compat-note">
-                    {{ compatibility.sky_influence.influences[0] }}
-                  </p>
+
+                  <div v-else-if="loadingCompat" class="compat-loading">
+                    <sl-spinner></sl-spinner>
+                  </div>
                 </div>
 
-                <div v-else-if="loadingCompat" class="compat-loading">
-                  <sl-spinner></sl-spinner>
+                <div v-else-if="isMyZodiac && profile.partners.length === 0" class="compat-prompt">
+                  <router-link to="/profile">
+                    <sl-icon name="plus-circle"></sl-icon>
+                    新增關注對象，查看配對分析
+                  </router-link>
                 </div>
-              </div>
+              </section>
 
-              <div v-else-if="isMyZodiac && profile.partners.length === 0" class="compat-prompt">
-                <router-link to="/profile">
-                  <sl-icon name="plus-circle"></sl-icon>
-                  新增關注對象，查看配對分析
-                </router-link>
-              </div>
-            </section>
+              <section v-if="horoscope.career_advice" class="advice-card card">
+                <div class="advice-icon">&#128188;</div>
+                <h3>事業運</h3>
+                <p>{{ horoscope.career_advice }}</p>
+              </section>
 
-            <section v-if="horoscope.career_advice" class="advice-card card">
-              <div class="advice-icon">&#128188;</div>
-              <h3>事業運</h3>
-              <p>{{ horoscope.career_advice }}</p>
-            </section>
-
-            <section v-if="horoscope.health_advice" class="advice-card card">
-              <div class="advice-icon">&#128154;</div>
-              <h3>健康運</h3>
-              <p>{{ horoscope.health_advice }}</p>
-            </section>
-          </div>
-
-          <section class="lucky-section card">
-            <h2>幸運指南</h2>
-            <div class="lucky-grid">
-              <div v-if="horoscope.lucky_day" class="lucky-item">
-                <span class="lucky-label">幸運日</span>
-                <span class="lucky-value">{{ horoscope.lucky_day }}</span>
-              </div>
-              <div v-if="horoscope.lucky_color" class="lucky-item">
-                <span class="lucky-label">幸運色</span>
-                <span class="lucky-value">{{ horoscope.lucky_color }}</span>
-              </div>
-              <div v-if="horoscope.lucky_number" class="lucky-item">
-                <span class="lucky-label">幸運數字</span>
-                <span class="lucky-value">{{ horoscope.lucky_number }}</span>
-              </div>
+              <section v-if="horoscope.health_advice" class="advice-card card">
+                <div class="advice-icon">&#128154;</div>
+                <h3>健康運</h3>
+                <p>{{ horoscope.health_advice }}</p>
+              </section>
             </div>
-          </section>
+
+            <section class="lucky-section card">
+              <h2>幸運指南</h2>
+              <div class="lucky-grid">
+                <div v-if="horoscope.lucky_day" class="lucky-item">
+                  <span class="lucky-label">幸運日</span>
+                  <span class="lucky-value">{{ horoscope.lucky_day }}</span>
+                </div>
+                <div v-if="horoscope.lucky_color" class="lucky-item">
+                  <span class="lucky-label">幸運色</span>
+                  <span class="lucky-value">{{ horoscope.lucky_color }}</span>
+                </div>
+                <div v-if="horoscope.lucky_number" class="lucky-item">
+                  <span class="lucky-label">幸運數字</span>
+                  <span class="lucky-value">{{ horoscope.lucky_number }}</span>
+                </div>
+              </div>
+            </section>
+          </template>
+
+          <!-- 月運勢內容 -->
+          <template v-else-if="viewMode === 'monthly'">
+            <div v-if="loadingMonthly" class="loading">
+              <sl-spinner style="font-size: 2rem;"></sl-spinner>
+              <p>載入月運勢中...</p>
+            </div>
+
+            <div v-else-if="monthlyError" class="error-state">
+              <div class="error-icon">&#128301;</div>
+              <h2>{{ monthlyError }}</h2>
+            </div>
+
+            <template v-else-if="monthlyHoroscope">
+              <section class="summary-section card">
+                <h2>{{ monthlyHoroscope.month_name }}運勢</h2>
+                <p>{{ monthlyHoroscope.summary }}</p>
+
+                <div v-if="monthlyHoroscope.overall_score" class="score">
+                  <span>整體運勢</span>
+                  <span class="stars" v-html="scoreStars(monthlyHoroscope.overall_score)"></span>
+                </div>
+              </section>
+
+              <div class="advice-grid">
+                <section v-if="monthlyHoroscope.love_advice" class="advice-card card">
+                  <div class="advice-icon">&#128151;</div>
+                  <h3>感情運</h3>
+                  <p>{{ monthlyHoroscope.love_advice }}</p>
+                </section>
+
+                <section v-if="monthlyHoroscope.career_advice" class="advice-card card">
+                  <div class="advice-icon">&#128188;</div>
+                  <h3>事業運</h3>
+                  <p>{{ monthlyHoroscope.career_advice }}</p>
+                </section>
+
+                <section v-if="monthlyHoroscope.health_advice" class="advice-card card">
+                  <div class="advice-icon">&#128154;</div>
+                  <h3>健康運</h3>
+                  <p>{{ monthlyHoroscope.health_advice }}</p>
+                </section>
+              </div>
+
+              <section class="lucky-section card">
+                <h2>幸運指南</h2>
+                <div class="lucky-grid">
+                  <div v-if="monthlyHoroscope.lucky_days" class="lucky-item">
+                    <span class="lucky-label">幸運日</span>
+                    <span class="lucky-value">{{ monthlyHoroscope.lucky_days }}</span>
+                  </div>
+                  <div v-if="monthlyHoroscope.lucky_color" class="lucky-item">
+                    <span class="lucky-label">幸運色</span>
+                    <span class="lucky-value">{{ monthlyHoroscope.lucky_color }}</span>
+                  </div>
+                  <div v-if="monthlyHoroscope.lucky_number" class="lucky-item">
+                    <span class="lucky-label">幸運數字</span>
+                    <span class="lucky-value">{{ monthlyHoroscope.lucky_number }}</span>
+                  </div>
+                </div>
+              </section>
+            </template>
+          </template>
 
           <!-- 設定提示 -->
           <section v-if="!isProfileSet" class="setup-prompt card">
@@ -287,6 +416,11 @@ const myZodiacSymbol = computed(() => {
 .loading {
   text-align: center;
   padding: var(--space-12);
+}
+
+.loading p {
+  margin-top: var(--space-4);
+  color: var(--text-muted);
 }
 
 .error-state {
@@ -336,6 +470,36 @@ const myZodiacSymbol = computed(() => {
   border-radius: var(--radius-full);
   font-size: 0.8rem;
   font-weight: 500;
+}
+
+/* 週運/月運切換標籤 */
+.view-tabs {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+}
+
+.tab-btn {
+  padding: var(--space-2) var(--space-5);
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  border-color: var(--stellar-gold);
+  color: var(--stellar-gold);
+}
+
+.tab-btn.active {
+  background: var(--stellar-gold);
+  border-color: var(--stellar-gold);
+  color: var(--cosmos-night);
 }
 
 .summary-section {
