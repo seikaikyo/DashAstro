@@ -1,8 +1,9 @@
 ---
 title: 宿曜道求職離職指引
 type: feature
-status: in-progress
+status: completed
 created: 2026-01-25
+completed: 2026-01-25
 ---
 
 # 宿曜道求職離職指引
@@ -119,11 +120,11 @@ Response:
 
 ## Checklist
 
-- [ ] 後端：職業類型資料結構
-- [ ] 後端：吉日計算邏輯
-- [ ] 後端：API 端點
-- [ ] 前端：求職離職卡片 UI
-- [ ] 測試驗證
+- [x] 後端：職業類型資料結構 (CAREER_BY_ELEMENT)
+- [x] 後端：吉日計算邏輯 (get_career_guidance)
+- [x] 後端：API 端點 (/career-guidance/{birth_date})
+- [x] 前端：求職離職卡片 UI (CollapsibleCard)
+- [ ] 測試驗證（等待後端部署）
 
 ---
 
