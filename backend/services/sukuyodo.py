@@ -361,6 +361,45 @@ class SukuyodoService:
         """取得所有 27 宿資料"""
         return self.mansions_data
 
+    def get_mansion_lunar_dates(self, mansion_index: int) -> list[dict]:
+        """
+        取得某個宿位對應的農曆生日範圍
+
+        Args:
+            mansion_index: 宿位索引 (0-26)
+
+        Returns:
+            對應的農曆月日列表
+        """
+        results = []
+
+        # 每個月檢查哪些日期會對應到這個宿位
+        for month, start_mansion in self.MONTH_START_MANSION.items():
+            # 計算這個月的哪一天對應到目標宿位
+            # mansion_index = (start_mansion + day - 1) % 27
+            # day = (mansion_index - start_mansion + 1) % 27
+            # 如果結果 <= 0，加 27
+
+            day = (mansion_index - start_mansion + 1) % 27
+            if day <= 0:
+                day += 27
+
+            # 農曆每月最多 30 天，只取有效日期
+            if 1 <= day <= 30:
+                month_names = {
+                    1: "正月", 2: "二月", 3: "三月", 4: "四月",
+                    5: "五月", 6: "六月", 7: "七月", 8: "八月",
+                    9: "九月", 10: "十月", 11: "十一月", 12: "十二月"
+                }
+                results.append({
+                    "lunar_month": month,
+                    "lunar_month_name": month_names[month],
+                    "lunar_day": day,
+                    "display": f"{month_names[month]}{day}日"
+                })
+
+        return results
+
     def find_compatible_mansions(self, solar_date: date) -> dict:
         """
         根據生日找出最佳配對與需要避免的本命宿
@@ -422,6 +461,7 @@ class SukuyodoService:
             for idx in sorted(indices):
                 m = self.mansions_data[idx]
                 elem_data = self.elements_data.get(m["element"], {})
+                lunar_dates = self.get_mansion_lunar_dates(idx)
                 mansions.append({
                     "name_jp": m["name_jp"],
                     "name_zh": m["name_zh"],
@@ -430,7 +470,8 @@ class SukuyodoService:
                     "element": m["element"],
                     "element_reading": elem_data.get("reading", ""),
                     "keywords": m["keywords"],
-                    "personality": m["personality"]
+                    "personality": m["personality"],
+                    "lunar_dates": lunar_dates
                 })
 
             result[key] = {
@@ -453,9 +494,9 @@ class SukuyodoService:
                 self._fortune_data = json.load(f)
         return self._fortune_data
 
-    def _get_element_relation(self, elem1: str, elem2: str) -> tuple[str, int]:
+    def _calc_fortune_element_relation(self, elem1: str, elem2: str) -> tuple[str, int]:
         """
-        計算兩個元素之間的關係
+        計算運勢用的元素關係
 
         Returns:
             (關係類型, 加成分數)
@@ -514,7 +555,7 @@ class SukuyodoService:
         day_element = day_info["element"]
 
         # 計算元素關係
-        relation_type, base_bonus = self._get_element_relation(user_element, day_element)
+        relation_type, base_bonus = self._calc_fortune_element_relation(user_element, day_element)
         relation_desc = fortune_data["element_relations"].get(
             relation_type,
             fortune_data["element_relations"]["neutral"]
@@ -744,8 +785,8 @@ class SukuyodoService:
         zodiac_element = zodiac_data.get("element", "土")
 
         # 元素關係
-        _, stem_bonus = self._get_element_relation(user_element, year_element)
-        _, zodiac_bonus = self._get_element_relation(user_element, zodiac_element)
+        _, stem_bonus = self._calc_fortune_element_relation(user_element, year_element)
+        _, zodiac_bonus = self._calc_fortune_element_relation(user_element, zodiac_element)
 
         base_score = 70 + (stem_bonus + zodiac_bonus) // 2
 

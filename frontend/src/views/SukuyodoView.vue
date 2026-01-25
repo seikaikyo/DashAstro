@@ -275,8 +275,8 @@ const getScoreLevel = (score: number) => {
         </p>
       </header>
 
-      <!-- 本命宿查詢 -->
-      <section class="lookup-section card card-gold">
+      <!-- 查詢區域 -->
+      <section class="lookup-form card card-gold">
         <h2 class="section-title">
           查詢<ruby>本命宿<rp>(</rp><rt>ほんみょうしゅく</rt><rp>)</rp></ruby>
         </h2>
@@ -302,57 +302,63 @@ const getScoreLevel = (score: number) => {
         <div v-if="lookupError" class="error-msg">
           {{ lookupError }}
         </div>
+      </section>
 
-        <!-- 本命宿結果 -->
-        <div v-if="mansion" class="mansion-result">
-          <div class="mansion-header" :style="{ '--element-color': mansionElementColor }">
-            <div class="mansion-name-group">
-              <ruby class="mansion-name">
-                {{ mansion.name_jp }}<rp>(</rp><rt>{{ mansion.reading }}</rt><rp>)</rp>
-              </ruby>
+      <!-- 結果區域 - PC版左右分欄 -->
+      <div v-if="mansion" class="results-layout">
+        <!-- 左側：本命宿結果 -->
+        <section class="mansion-section card">
+          <div class="mansion-result">
+            <div class="mansion-header" :style="{ '--element-color': mansionElementColor }">
+              <div class="mansion-name-group">
+                <ruby class="mansion-name">
+                  {{ mansion.name_jp }}<rp>(</rp><rt>{{ mansion.reading }}</rt><rp>)</rp>
+                </ruby>
+              </div>
+              <span class="mansion-element">{{ mansion.element }}</span>
             </div>
-            <span class="mansion-element">{{ mansion.element }}</span>
-          </div>
 
-          <div v-if="mansion.lunar_date" class="lunar-date">
-            {{ mansion.lunar_date.display }}
-          </div>
-
-          <div class="mansion-keywords">
-            <span
-              v-for="kw in mansion.keywords"
-              :key="kw"
-              class="keyword-tag"
-            >{{ kw }}</span>
-          </div>
-
-          <p class="mansion-personality">{{ mansion.personality }}</p>
-
-          <button
-            class="toggle-details"
-            @click="showDetails = !showDetails"
-          >
-            {{ showDetails ? '收起詳情' : '查看詳情' }}
-            <sl-icon :name="showDetails ? 'chevron-up' : 'chevron-down'"></sl-icon>
-          </button>
-
-          <div v-if="showDetails" class="mansion-details">
-            <div class="detail-item">
-              <h4>感情運</h4>
-              <p>{{ mansion.love }}</p>
+            <div v-if="mansion.lunar_date" class="lunar-date">
+              {{ mansion.lunar_date.display }}
             </div>
-            <div class="detail-item">
-              <h4>事業運</h4>
-              <p>{{ mansion.career }}</p>
+
+            <div class="mansion-keywords">
+              <span
+                v-for="kw in mansion.keywords"
+                :key="kw"
+                class="keyword-tag"
+              >{{ kw }}</span>
             </div>
-            <div class="detail-item">
-              <h4>健康提醒</h4>
-              <p>{{ mansion.health }}</p>
+
+            <p class="mansion-personality">{{ mansion.personality }}</p>
+
+            <button
+              class="toggle-details"
+              @click="showDetails = !showDetails"
+            >
+              {{ showDetails ? '收起詳情' : '查看詳情' }}
+              <sl-icon :name="showDetails ? 'chevron-up' : 'chevron-down'"></sl-icon>
+            </button>
+
+            <div v-if="showDetails" class="mansion-details">
+              <div class="detail-item">
+                <h4>感情運</h4>
+                <p>{{ mansion.love }}</p>
+              </div>
+              <div class="detail-item">
+                <h4>事業運</h4>
+                <p>{{ mansion.career }}</p>
+              </div>
+              <div class="detail-item">
+                <h4>健康提醒</h4>
+                <p>{{ mansion.health }}</p>
+              </div>
             </div>
           </div>
+        </section>
 
-          <!-- 相性配對查詢結果 -->
-          <div v-if="compatFinder" class="compat-finder">
+        <!-- 右側：相性配對查詢結果 -->
+        <section v-if="compatFinder" class="compat-finder-section card">
             <h3 class="finder-title">尋找你的最佳配對</h3>
 
             <!-- 最適合結婚 -->
@@ -443,13 +449,12 @@ const getScoreLevel = (score: number) => {
               <p class="detail-personality">{{ selectedMansion.personality }}</p>
             </div>
 
-            <div v-if="finderLoading" class="finder-loading">
-              <sl-spinner></sl-spinner>
-              <span>載入中...</span>
-            </div>
+          <div v-if="finderLoading" class="finder-loading">
+            <sl-spinner></sl-spinner>
+            <span>載入中...</span>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
       <!-- 相性診斷 -->
       <section class="compatibility-section card">
@@ -769,6 +774,31 @@ ruby rt {
 
 ruby rp {
   display: none;
+}
+
+/* 查詢表單 */
+.lookup-form {
+  max-width: 600px;
+  margin: 0 auto var(--space-8);
+}
+
+/* 結果區域 - PC 兩欄佈局 */
+.results-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-6);
+  margin-bottom: var(--space-8);
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.mansion-section {
+  height: fit-content;
+}
+
+.compat-finder-section {
+  height: fit-content;
 }
 
 /* 本命宿查詢 */
@@ -1345,11 +1375,9 @@ ruby rp {
   line-height: 1.6;
 }
 
-/* 相性配對查詢 */
-.compat-finder {
-  margin-top: var(--space-8);
-  padding-top: var(--space-6);
-  border-top: 1px solid var(--border-default);
+/* 相性配對查詢 - 右側欄 */
+.compat-finder-section {
+  /* 獨立 card，不需要 border-top */
 }
 
 .finder-title {
@@ -1513,6 +1541,12 @@ ruby rp {
   gap: var(--space-2);
   padding: var(--space-4);
   color: var(--text-muted);
+}
+
+@media (max-width: 900px) {
+  .results-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 600px) {
