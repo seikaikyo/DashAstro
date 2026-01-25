@@ -398,6 +398,12 @@ async function requestInterpretation() {
   margin-bottom: var(--space-4);
 }
 
+.keywords sl-tag::part(base) {
+  background: var(--cosmos-night);
+  border: 1px solid var(--astral-medium);
+  color: var(--text-secondary);
+}
+
 .meaning {
   color: var(--text-secondary);
   line-height: 1.7;

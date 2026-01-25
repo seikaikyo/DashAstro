@@ -177,18 +177,18 @@ class CompatibilityService:
 
     # 星座特質描述
     SIGN_TRAITS = {
-        "ARI": {"trait": "衝勁與熱情", "need": "需要對方跟上節奏"},
-        "TAU": {"trait": "穩定與忠誠", "need": "需要安全感與物質保障"},
-        "GEM": {"trait": "機智與變化", "need": "需要新鮮感與智性交流"},
-        "CAN": {"trait": "溫柔與照顧", "need": "需要情感上的回應與家庭感"},
-        "LEO": {"trait": "自信與慷慨", "need": "需要被欣賞與關注"},
-        "VIR": {"trait": "細膩與務實", "need": "需要對方理解其完美主義"},
-        "LIB": {"trait": "優雅與和諧", "need": "需要平等與美感的生活"},
-        "SCO": {"trait": "深情與專注", "need": "需要絕對的忠誠與信任"},
-        "SAG": {"trait": "樂觀與自由", "need": "需要空間與冒險精神"},
-        "CAP": {"trait": "穩重與責任", "need": "需要對方認真對待關係"},
-        "AQU": {"trait": "獨立與創新", "need": "需要精神上的連結與尊重"},
-        "PIS": {"trait": "浪漫與直覺", "need": "需要情感共鳴與包容"},
+        "ARI": {"trait": "衝勁與熱情", "need": "跟上他的節奏"},
+        "TAU": {"trait": "穩定與忠誠", "need": "給他安全感"},
+        "GEM": {"trait": "機智與變化", "need": "保持新鮮感與智性交流"},
+        "CAN": {"trait": "溫柔與照顧", "need": "給予情感上的回應"},
+        "LEO": {"trait": "自信與慷慨", "need": "表達你的欣賞與關注"},
+        "VIR": {"trait": "細膩與務實", "need": "理解他的完美主義"},
+        "LIB": {"trait": "優雅與和諧", "need": "維持平衡與美感"},
+        "SCO": {"trait": "深情與專注", "need": "展現你的忠誠與信任"},
+        "SAG": {"trait": "樂觀與自由", "need": "給他足夠的空間"},
+        "CAP": {"trait": "穩重與責任", "need": "認真對待這段關係"},
+        "AQU": {"trait": "獨立與創新", "need": "尊重他的獨立性"},
+        "PIS": {"trait": "浪漫與直覺", "need": "給予情感共鳴與包容"},
     }
 
     def _generate_advice(
@@ -227,7 +227,7 @@ class CompatibilityService:
 
         # 具體相處建議
         if trait2:
-            advice_parts.append(f"本週可以多關注對方{trait2.get('need', '的需求')}。")
+            advice_parts.append(f"本週建議：{trait2.get('need', '多關注對方需求')}。")
 
         # 天象建議
         if sky.get("venus_retrograde"):
