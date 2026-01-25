@@ -1,8 +1,9 @@
 ---
 title: 宿曜道農曆西曆對照
 type: feature
-status: in-progress
+status: completed
 created: 2026-01-25
+completed: 2026-01-25
 ---
 
 # 宿曜道農曆西曆對照
@@ -72,7 +73,7 @@ created: 2026-01-25
 
 ## Checklist
 
-- [ ] 後端：農曆→西曆轉換函數
-- [ ] 後端：擴展 compatibility-finder API
-- [ ] 前端：顯示西曆日期列表
-- [ ] 測試驗證
+- [x] 後端：農曆→西曆轉換函數 (lunar_to_solar, get_solar_dates_for_lunar)
+- [x] 後端：擴展 compatibility-finder API（每個農曆日期包含 solar_dates）
+- [x] 前端：顯示西曆日期列表（可展開/收合）
+- [ ] 測試驗證（等待後端部署）
