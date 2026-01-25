@@ -33,25 +33,43 @@ class SukuyodoService:
     def __init__(self):
         self._mansions_data = None
         self._relations_data = None
+        self._elements_data = None
+        self._metadata = None
 
-    @property
-    def mansions_data(self) -> list[dict]:
-        """載入 27 宿資料"""
+    def _load_data(self):
+        """載入所有資料"""
         if self._mansions_data is None:
             data_path = Path(__file__).parent.parent / "data" / "sukuyodo_mansions.json"
             with open(data_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 self._mansions_data = data["mansions"]
                 self._relations_data = data["relations"]
+                self._elements_data = data.get("elements", {})
+                self._metadata = data.get("metadata", {})
+
+    @property
+    def mansions_data(self) -> list[dict]:
+        """載入 27 宿資料"""
+        self._load_data()
         return self._mansions_data
 
     @property
     def relations_data(self) -> dict:
         """載入關係資料"""
-        if self._relations_data is None:
-            # 觸發載入
-            _ = self.mansions_data
+        self._load_data()
         return self._relations_data
+
+    @property
+    def elements_data(self) -> dict:
+        """載入元素資料"""
+        self._load_data()
+        return self._elements_data
+
+    @property
+    def metadata(self) -> dict:
+        """載入元資料"""
+        self._load_data()
+        return self._metadata
 
     def solar_to_lunar(self, solar_date: date) -> tuple[int, int, int, bool]:
         """
@@ -205,11 +223,20 @@ class SukuyodoService:
 
         relation = self.get_relation_type(mansion1["index"], mansion2["index"])
 
+        # 計算距離
+        distance = abs(mansion2["index"] - mansion1["index"])
+        if distance > 13:
+            distance = 27 - distance
+
         # 計算元素相性加成
         element_bonus = self._calculate_element_bonus(
             mansion1["element"],
             mansion2["element"]
         )
+
+        # 取得元素資料
+        elem1_data = self.elements_data.get(mansion1["element"], {})
+        elem2_data = self.elements_data.get(mansion2["element"], {})
 
         # 綜合分數
         final_score = min(100, relation["score"] + element_bonus)
@@ -220,26 +247,65 @@ class SukuyodoService:
                 "mansion": mansion1["name_jp"],
                 "reading": mansion1["reading"],
                 "element": mansion1["element"],
-                "keywords": mansion1["keywords"]
+                "element_reading": elem1_data.get("reading", ""),
+                "element_traits": elem1_data.get("traits", ""),
+                "keywords": mansion1["keywords"],
+                "index": mansion1["index"]
             },
             "person2": {
                 "date": date2.isoformat(),
                 "mansion": mansion2["name_jp"],
                 "reading": mansion2["reading"],
                 "element": mansion2["element"],
-                "keywords": mansion2["keywords"]
+                "element_reading": elem2_data.get("reading", ""),
+                "element_traits": elem2_data.get("traits", ""),
+                "keywords": mansion2["keywords"],
+                "index": mansion2["index"]
             },
             "relation": {
                 "type": relation["type"],
                 "name": relation["name"],
                 "name_jp": relation.get("name_jp", relation["name"]),
+                "reading": relation.get("reading", ""),
                 "description": relation["description"],
-                "advice": relation["advice"]
+                "detailed": relation.get("detailed", ""),
+                "advice": relation["advice"],
+                "tips": relation.get("tips", []),
+                "avoid": relation.get("avoid", []),
+                "good_for": relation.get("good_for", [])
+            },
+            "calculation": {
+                "distance": distance,
+                "formula": f"|{mansion1['index']} - {mansion2['index']}| = {abs(mansion2['index'] - mansion1['index'])} → 距離 {distance}",
+                "element_relation": self._get_element_relation(mansion1["element"], mansion2["element"])
             },
             "score": final_score,
             "element_bonus": element_bonus,
             "summary": self._generate_summary(mansion1, mansion2, relation)
         }
+
+    def _get_element_relation(self, elem1: str, elem2: str) -> str:
+        """取得元素關係說明"""
+        GENERATING = {
+            ("木", "火"): "木生火",
+            ("火", "土"): "火生土",
+            ("土", "金"): "土生金",
+            ("金", "水"): "金生水",
+            ("水", "木"): "水生木"
+        }
+
+        if elem1 == elem2:
+            return f"同元素（{elem1}）+10 分"
+
+        pair = (elem1, elem2)
+        reverse_pair = (elem2, elem1)
+
+        if pair in GENERATING:
+            return f"{GENERATING[pair]} +5 分"
+        if reverse_pair in GENERATING:
+            return f"{GENERATING[reverse_pair]} +5 分"
+
+        return "無特殊加成"
 
     def _calculate_element_bonus(self, elem1: str, elem2: str) -> int:
         """計算元素相性加成"""
