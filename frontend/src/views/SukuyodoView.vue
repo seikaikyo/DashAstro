@@ -73,6 +73,13 @@ interface Metadata {
   method_reading: string
 }
 
+interface LunarDate {
+  lunar_month: number
+  lunar_month_name: string
+  lunar_day: number
+  display: string
+}
+
 interface CompatibleMansion {
   name_jp: string
   name_zh: string
@@ -82,6 +89,7 @@ interface CompatibleMansion {
   element_reading: string
   keywords: string[]
   personality: string
+  lunar_dates: LunarDate[]
 }
 
 interface CompatibilityCategory {
@@ -639,6 +647,19 @@ const getScoreLevel = (score: number) => {
                 <span v-for="kw in selectedMansion.keywords" :key="kw" class="keyword-tag">{{ kw }}</span>
               </div>
               <p class="detail-personality">{{ selectedMansion.personality }}</p>
+
+              <!-- 農曆生日對照 -->
+              <div v-if="selectedMansion.lunar_dates?.length" class="lunar-dates-section">
+                <h5>對應農曆生日</h5>
+                <p class="lunar-dates-hint">找這些日期生的人就對了！</p>
+                <div class="lunar-dates-grid">
+                  <span
+                    v-for="ld in selectedMansion.lunar_dates"
+                    :key="ld.lunar_month"
+                    class="lunar-date-chip"
+                  >{{ ld.display }}</span>
+                </div>
+              </div>
             </div>
 
           <div v-if="finderLoading" class="finder-loading">
@@ -2002,6 +2023,39 @@ ruby rp {
   line-height: 1.7;
   color: var(--text-secondary);
   font-size: 0.9rem;
+}
+
+/* 農曆生日對照 */
+.lunar-dates-section {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-default);
+}
+
+.lunar-dates-section h5 {
+  color: var(--stellar-gold);
+  font-size: 0.9rem;
+  margin-bottom: var(--space-1);
+}
+
+.lunar-dates-hint {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-bottom: var(--space-3);
+}
+
+.lunar-dates-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.lunar-date-chip {
+  padding: var(--space-1) var(--space-2);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--text-primary);
 }
 
 .finder-loading {
