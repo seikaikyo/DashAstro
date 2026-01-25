@@ -186,6 +186,60 @@ CREATE TABLE transactions (
 
 ---
 
+## 自動監控設定
+
+### 已實作
+- `backend/services/milestone_monitor.py` - 監控服務
+- `backend/routers/cron.py` - Cron API 端點
+- `POST /api/cron/milestone-check` - 每日檢查端點
+
+### Render Cron Job 設定步驟
+
+1. 進入 Render Dashboard → DashAstro API 服務
+2. 點選 "Cron Jobs" → "New Cron Job"
+3. 設定：
+   ```
+   Name: milestone-check
+   Command: curl -X POST https://dashastro-api.onrender.com/api/cron/milestone-check -H "X-Cron-Secret: $CRON_SECRET"
+   Schedule: 0 9 * * * (每天早上 9 點)
+   ```
+
+4. 環境變數設定：
+   ```
+   CRON_SECRET=<自訂密鑰>
+   LINE_NOTIFY_TOKEN=<LINE Notify Token>
+   ```
+
+### LINE Notify 設定
+1. 前往 https://notify-bot.line.me/
+2. 登入 → 發行權杖
+3. 選擇要通知的聊天室（1:1 或群組）
+4. 複製 Token 設定到環境變數
+
+### 通知規則
+- 每週一固定發送週報
+- 任何里程碑達標時立即通知
+
+---
+
+## 金流整合
+
+### 建議方案：paid.tw Skill
+- GitHub: https://github.com/paid-tw/skills
+- 台灣在地金流，整合簡單
+- 支援：信用卡、ATM、超商代碼
+
+### 整合時機
+觸發 Phase B 後再安裝：
+```bash
+# 安裝 paid.tw skill
+mkdir -p ~/.claude/skills/paid-tw
+curl -o ~/.claude/skills/paid-tw/SKILL.md \
+  https://raw.githubusercontent.com/paid-tw/skills/main/SKILL.md
+```
+
+---
+
 ## 備註
 
 - 阿闍梨身份揭露與否由本人決定
