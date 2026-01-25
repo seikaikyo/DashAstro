@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useProfile, ZODIAC_SIGNS } from '../stores/profile'
+import { useProfile, ZODIAC_SIGNS, type Partner } from '../stores/profile'
+import PartnerSelector from '../components/PartnerSelector.vue'
 
 interface WeeklyHoroscope {
   zodiac_code: string
@@ -50,6 +51,9 @@ const loading = ref(true)
 const loadingCompat = ref(false)
 const error = ref('')
 
+// 當前選擇的對象
+const selectedPartner = ref<Partner | null>(null)
+
 const apiUrl = import.meta.env.VITE_API_URL || 'https://dashastro-api.onrender.com'
 
 const code = computed(() => route.params.code as string)
@@ -75,14 +79,26 @@ onMounted(async () => {
     loading.value = false
   }
 
-  // 如果是用戶的星座且有主要對象，載入配對
-  if (isMyZodiac.value && primaryPartner.value) {
+  // 初始化選擇的對象
+  if (primaryPartner.value) {
+    selectedPartner.value = primaryPartner.value
+  }
+
+  // 如果是用戶的星座且有對象，載入配對
+  if (isMyZodiac.value && selectedPartner.value) {
+    await loadCompatibility()
+  }
+})
+
+// 監聽選擇的對象變化
+watch(selectedPartner, async (newPartner) => {
+  if (newPartner && isMyZodiac.value) {
     await loadCompatibility()
   }
 })
 
 async function loadCompatibility() {
-  if (!profile.value.zodiacCode || !primaryPartner.value) return
+  if (!profile.value.zodiacCode || !selectedPartner.value) return
 
   loadingCompat.value = true
   try {
@@ -91,7 +107,7 @@ async function loadCompatibility() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sign1: profile.value.zodiacCode,
-        sign2: primaryPartner.value.zodiacCode
+        sign2: selectedPartner.value.zodiacCode
       })
     })
     if (res.ok) {
@@ -177,27 +193,32 @@ const myZodiacSymbol = computed(() => {
               <p>{{ horoscope.love_advice }}</p>
 
               <!-- 配對分析 (只在用戶自己的星座顯示) -->
-              <div v-if="isMyZodiac && primaryPartner && compatibility" class="compat-inline">
-                <div class="compat-header">
-                  <span class="compat-pair">
-                    {{ myZodiacSymbol }} &hearts; {{ partnerZodiacSymbol }}
-                  </span>
-                  <span class="compat-score">{{ compatScoreStars(compatibility.overall_score) }}</span>
+              <div v-if="isMyZodiac && profile.partners.length > 0" class="compat-inline">
+                <!-- 對象選擇器 -->
+                <PartnerSelector v-model="selectedPartner" />
+
+                <div v-if="selectedPartner && compatibility">
+                  <div class="compat-header">
+                    <span class="compat-pair">
+                      {{ myZodiacSymbol }} &hearts; {{ getPartnerZodiac(selectedPartner)?.symbol }}
+                    </span>
+                    <span class="compat-score">{{ compatScoreStars(compatibility.overall_score) }}</span>
+                  </div>
+                  <p class="compat-partner">
+                    與{{ selectedPartner.nickname || getPartnerZodiac(selectedPartner)?.name }}的本週互動
+                  </p>
+                  <p class="compat-advice">{{ compatibility.advice }}</p>
+                  <p v-if="compatibility.sky_influence?.influences?.length" class="compat-note">
+                    {{ compatibility.sky_influence.influences[0] }}
+                  </p>
                 </div>
-                <p class="compat-partner">
-                  與{{ primaryPartner.nickname || partnerZodiacName }}的本週互動
-                </p>
-                <p class="compat-advice">{{ compatibility.advice }}</p>
-                <p v-if="compatibility.sky_influence?.influences?.length" class="compat-note">
-                  {{ compatibility.sky_influence.influences[0] }}
-                </p>
+
+                <div v-else-if="loadingCompat" class="compat-loading">
+                  <sl-spinner></sl-spinner>
+                </div>
               </div>
 
-              <div v-else-if="isMyZodiac && loadingCompat" class="compat-loading">
-                <sl-spinner></sl-spinner>
-              </div>
-
-              <div v-else-if="isMyZodiac && !primaryPartner" class="compat-prompt">
+              <div v-else-if="isMyZodiac && profile.partners.length === 0" class="compat-prompt">
                 <router-link to="/profile">
                   <sl-icon name="plus-circle"></sl-icon>
                   新增關注對象，查看配對分析
