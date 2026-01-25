@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from config import get_settings
 from database import init_db
-from routers import health_router, horoscope_router, tarot_router, astronomy_router, compatibility_router
+from routers import health_router, horoscope_router, tarot_router, astronomy_router, compatibility_router, stats_router
 
 settings = get_settings()
 
@@ -93,6 +93,7 @@ app.include_router(horoscope_router)
 app.include_router(tarot_router)
 app.include_router(astronomy_router)
 app.include_router(compatibility_router)
+app.include_router(stats_router)
 
 
 @app.get("/")
