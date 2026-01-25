@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useProfile, ZODIAC_SIGNS } from '../stores/profile'
 
 interface WeeklyHoroscope {
   zodiac_code: string
@@ -17,14 +18,46 @@ interface WeeklyHoroscope {
   overall_score: number | null
 }
 
+interface CompatibilityResult {
+  sign1_name: string
+  sign2_name: string
+  overall_score: number
+  aspect: {
+    name: string
+    harmony: number
+    desc: string
+  }
+  element_compatibility: {
+    element1: string
+    element2: string
+    score: number
+    desc: string
+  }
+  sky_influence: {
+    influences: string[]
+    venus_retrograde: boolean
+    mercury_retrograde: boolean
+  }
+  advice: string
+}
+
 const route = useRoute()
+const { profile, isProfileSet, primaryPartner, getPartnerZodiac } = useProfile()
+
 const horoscope = ref<WeeklyHoroscope | null>(null)
+const compatibility = ref<CompatibilityResult | null>(null)
 const loading = ref(true)
+const loadingCompat = ref(false)
 const error = ref('')
 
 const apiUrl = import.meta.env.VITE_API_URL || 'https://dashastro-api.onrender.com'
 
 const code = computed(() => route.params.code as string)
+
+// 判斷是否是用戶自己的星座
+const isMyZodiac = computed(() => {
+  return isProfileSet.value && profile.value.zodiacCode === code.value.toUpperCase()
+})
 
 onMounted(async () => {
   try {
@@ -41,12 +74,60 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+
+  // 如果是用戶的星座且有主要對象，載入配對
+  if (isMyZodiac.value && primaryPartner.value) {
+    await loadCompatibility()
+  }
 })
+
+async function loadCompatibility() {
+  if (!profile.value.zodiacCode || !primaryPartner.value) return
+
+  loadingCompat.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/compatibility/weekly`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sign1: profile.value.zodiacCode,
+        sign2: primaryPartner.value.zodiacCode
+      })
+    })
+    if (res.ok) {
+      compatibility.value = await res.json()
+    }
+  } catch (e) {
+    console.error('載入配對分析失敗')
+  } finally {
+    loadingCompat.value = false
+  }
+}
 
 const scoreStars = (score: number | null) => {
   if (!score) return ''
   return '&#9733;'.repeat(score) + '&#9734;'.repeat(5 - score)
 }
+
+const compatScoreStars = (score: number) => {
+  const full = Math.floor(score)
+  const half = score % 1 >= 0.5 ? 1 : 0
+  return '\u2605'.repeat(full) + (half ? '\u2606' : '') + '\u2606'.repeat(5 - full - half)
+}
+
+const partnerZodiacName = computed(() => {
+  if (!primaryPartner.value) return ''
+  return getPartnerZodiac(primaryPartner.value)?.name || ''
+})
+
+const partnerZodiacSymbol = computed(() => {
+  if (!primaryPartner.value) return ''
+  return getPartnerZodiac(primaryPartner.value)?.symbol || ''
+})
+
+const myZodiacSymbol = computed(() => {
+  return ZODIAC_SIGNS.find(z => z.code === profile.value.zodiacCode)?.symbol || ''
+})
 </script>
 
 <template>
@@ -75,6 +156,7 @@ const scoreStars = (score: number | null) => {
           <span class="zodiac-symbol">{{ horoscope.zodiac_symbol }}</span>
           <h1>{{ horoscope.zodiac_name }}</h1>
           <p class="week-info">{{ horoscope.week_start }} 當週運勢</p>
+          <span v-if="isMyZodiac" class="my-badge">我的星座</span>
         </header>
 
         <div class="detail-content">
@@ -93,6 +175,34 @@ const scoreStars = (score: number | null) => {
               <div class="advice-icon">&#128151;</div>
               <h3>感情運</h3>
               <p>{{ horoscope.love_advice }}</p>
+
+              <!-- 配對分析 (只在用戶自己的星座顯示) -->
+              <div v-if="isMyZodiac && primaryPartner && compatibility" class="compat-inline">
+                <div class="compat-header">
+                  <span class="compat-pair">
+                    {{ myZodiacSymbol }} &hearts; {{ partnerZodiacSymbol }}
+                  </span>
+                  <span class="compat-score">{{ compatScoreStars(compatibility.overall_score) }}</span>
+                </div>
+                <p class="compat-partner">
+                  與{{ primaryPartner.nickname || partnerZodiacName }}的本週互動
+                </p>
+                <p class="compat-advice">{{ compatibility.advice }}</p>
+                <p v-if="compatibility.sky_influence?.influences?.length" class="compat-note">
+                  {{ compatibility.sky_influence.influences[0] }}
+                </p>
+              </div>
+
+              <div v-else-if="isMyZodiac && loadingCompat" class="compat-loading">
+                <sl-spinner></sl-spinner>
+              </div>
+
+              <div v-else-if="isMyZodiac && !primaryPartner" class="compat-prompt">
+                <router-link to="/profile">
+                  <sl-icon name="plus-circle"></sl-icon>
+                  新增關注對象，查看配對分析
+                </router-link>
+              </div>
             </section>
 
             <section v-if="horoscope.career_advice" class="advice-card card">
@@ -124,6 +234,15 @@ const scoreStars = (score: number | null) => {
                 <span class="lucky-value">{{ horoscope.lucky_number }}</span>
               </div>
             </div>
+          </section>
+
+          <!-- 設定提示 -->
+          <section v-if="!isProfileSet" class="setup-prompt card">
+            <sl-icon name="person-plus"></sl-icon>
+            <p>設定你的星座，查看專屬配對分析</p>
+            <router-link to="/profile" class="btn-gold">
+              設定我的資料
+            </router-link>
           </section>
         </div>
       </div>
@@ -187,6 +306,17 @@ const scoreStars = (score: number | null) => {
   color: var(--text-muted);
 }
 
+.my-badge {
+  display: inline-block;
+  margin-top: var(--space-3);
+  padding: var(--space-1) var(--space-3);
+  background: var(--stellar-gold);
+  color: var(--cosmos-night);
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
 .summary-section {
   margin-bottom: var(--space-6);
 }
@@ -236,6 +366,72 @@ const scoreStars = (score: number | null) => {
   font-size: 0.95rem;
 }
 
+/* 配對分析內嵌樣式 */
+.compat-inline {
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+  border-top: 1px dashed var(--border-gold);
+  text-align: left;
+}
+
+.compat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+
+.compat-pair {
+  font-size: 1.25rem;
+}
+
+.compat-score {
+  color: var(--stellar-gold);
+  letter-spacing: 2px;
+}
+
+.compat-partner {
+  font-weight: 500;
+  margin-bottom: var(--space-2);
+  color: var(--text-primary);
+}
+
+.compat-advice {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--space-2);
+}
+
+.compat-note {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.compat-loading {
+  margin-top: var(--space-4);
+  text-align: center;
+}
+
+.compat-prompt {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px dashed var(--border-default);
+}
+
+.compat-prompt a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.compat-prompt a:hover {
+  color: var(--stellar-gold);
+}
+
 .lucky-section h2 {
   margin-bottom: var(--space-4);
   color: var(--stellar-gold);
@@ -262,5 +458,29 @@ const scoreStars = (score: number | null) => {
   font-size: 1.1rem;
   font-weight: 500;
   color: var(--stellar-gold);
+}
+
+/* 設定提示 */
+.setup-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  text-align: center;
+  margin-top: var(--space-6);
+}
+
+.setup-prompt sl-icon {
+  font-size: 2rem;
+  color: var(--text-muted);
+}
+
+.setup-prompt p {
+  color: var(--text-secondary);
+}
+
+.setup-prompt .btn-gold {
+  padding: var(--space-2) var(--space-5);
 }
 </style>
