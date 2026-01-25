@@ -11,7 +11,8 @@ const navItems = [
   { path: '/', label: '首頁', icon: 'house' },
   { path: '/horoscope', label: '星座運勢', icon: 'stars' },
   { path: '/tarot', label: '塔羅占卜', icon: 'layers' },
-  { path: '/sky', label: '今日天象', icon: 'moon-stars' }
+  { path: '/sky', label: '今日天象', icon: 'moon-stars' },
+  { path: '/sukuyodo', label: '宿曜道', icon: 'yin-yang' }
 ]
 
 const isActive = (path: string) => {
