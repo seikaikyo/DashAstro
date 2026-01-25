@@ -124,6 +124,32 @@ def get_ai_status():
     return claude_service.get_status()
 
 
+@router.get("/ai-test")
+def test_ai_service():
+    """測試 AI 服務"""
+    from services.claude_ai import claude_service
+    from anthropic import Anthropic
+
+    status = claude_service.get_status()
+    result = {"status": status, "test_result": None, "error": None}
+
+    if not status.get("available"):
+        result["error"] = "服務不可用"
+        return result
+
+    try:
+        response = claude_service.client.messages.create(
+            model="claude-3-5-sonnet-20241022",
+            max_tokens=50,
+            messages=[{"role": "user", "content": "說 OK"}]
+        )
+        result["test_result"] = response.content[0].text
+    except Exception as e:
+        result["error"] = f"{type(e).__name__}: {str(e)}"
+
+    return result
+
+
 @router.post("/interpret")
 async def interpret_reading(
     request: InterpretRequest,
