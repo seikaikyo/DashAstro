@@ -121,12 +121,15 @@ async def interpret_reading(
     request: InterpretRequest,
     session: Session = Depends(get_session)
 ):
-    """AI 解讀塔羅牌 (需要另外實作 Claude 服務)"""
+    """AI 解讀塔羅牌"""
+    from services.claude_ai import claude_service
+
     reading = session.get(TarotReading, request.reading_id)
 
     if not reading:
         raise HTTPException(status_code=404, detail="解讀紀錄不存在")
 
+    # 如果已有解讀，直接回傳
     if reading.ai_interpretation:
         return {
             "reading_id": str(reading.id),
@@ -134,9 +137,47 @@ async def interpret_reading(
             "cached": True
         }
 
-    # TODO: 整合 Claude AI 服務
+    # 取得牌陣名稱
+    spread = session.get(TarotSpread, reading.spread_id)
+    spread_name = spread.name_zh if spread else "單牌"
+
+    # 取得每張牌的詳細資料
+    cards_for_ai = []
+    for drawn in reading.cards_drawn:
+        card = session.exec(
+            select(TarotCard).where(TarotCard.id == drawn.get("card_id"))
+        ).first()
+        if card:
+            is_reversed = drawn.get("is_reversed", False)
+            cards_for_ai.append({
+                "name_zh": card.name_zh,
+                "position_name": drawn.get("position_name", ""),
+                "is_reversed": is_reversed,
+                "keywords": card.keywords,
+                "meaning": card.reversed_meaning if is_reversed else card.upright_meaning
+            })
+
+    # 呼叫 Claude AI 解讀
+    interpretation = await claude_service.interpret_tarot_reading(
+        cards=cards_for_ai,
+        question=reading.question,
+        spread_name=spread_name
+    )
+
+    if interpretation:
+        # 儲存解讀結果
+        reading.ai_interpretation = interpretation
+        session.add(reading)
+        session.commit()
+
+        return {
+            "reading_id": str(reading.id),
+            "interpretation": interpretation,
+            "cached": False
+        }
+
     return {
         "reading_id": str(reading.id),
         "interpretation": None,
-        "message": "AI 解讀服務開發中"
+        "message": "AI 服務暫時無法使用"
     }
