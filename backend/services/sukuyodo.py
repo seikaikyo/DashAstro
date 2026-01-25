@@ -119,6 +119,61 @@ class SukuyodoService:
 
         return (lunar_year, lunar_month, lunar_day, False)
 
+    def lunar_to_solar(self, lunar_year: int, lunar_month: int, lunar_day: int) -> date | None:
+        """
+        農曆轉西曆
+
+        Args:
+            lunar_year: 農曆年
+            lunar_month: 農曆月 (1-12)
+            lunar_day: 農曆日 (1-30)
+
+        Returns:
+            對應的西曆日期，若無效則返回 None
+        """
+        try:
+            from lunarcalendar import Converter, Lunar
+            lunar = Lunar(lunar_year, lunar_month, lunar_day, isleap=False)
+            solar = Converter.Lunar2Solar(lunar)
+            return date(solar.year, solar.month, solar.day)
+        except (ImportError, ValueError, Exception):
+            # 無法轉換（可能是無效日期）
+            return None
+
+    def get_solar_dates_for_lunar(
+        self,
+        lunar_month: int,
+        lunar_day: int,
+        year_range: int = 20
+    ) -> list[dict]:
+        """
+        將農曆月日轉換為多年的西曆日期
+
+        Args:
+            lunar_month: 農曆月 (1-12)
+            lunar_day: 農曆日 (1-30)
+            year_range: 年份範圍（±N 年）
+
+        Returns:
+            西曆日期列表
+        """
+        from datetime import date as dt
+        current_year = dt.today().year
+        start_year = current_year - year_range
+        end_year = current_year + year_range
+
+        results = []
+        for year in range(start_year, end_year + 1):
+            solar_date = self.lunar_to_solar(year, lunar_month, lunar_day)
+            if solar_date:
+                results.append({
+                    "lunar_year": year,
+                    "solar_date": solar_date.isoformat(),
+                    "display": f"{solar_date.year}/{solar_date.month}/{solar_date.day}"
+                })
+
+        return results
+
     def get_mansion_index(self, lunar_month: int, lunar_day: int) -> int:
         """
         根據農曆月日計算本命宿索引
@@ -462,6 +517,15 @@ class SukuyodoService:
                 m = self.mansions_data[idx]
                 elem_data = self.elements_data.get(m["element"], {})
                 lunar_dates = self.get_mansion_lunar_dates(idx)
+
+                # 為每個農曆日期加上西曆對照
+                for ld in lunar_dates:
+                    ld["solar_dates"] = self.get_solar_dates_for_lunar(
+                        ld["lunar_month"],
+                        ld["lunar_day"],
+                        year_range=20
+                    )
+
                 mansions.append({
                     "name_jp": m["name_jp"],
                     "name_zh": m["name_zh"],
