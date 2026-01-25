@@ -104,17 +104,21 @@ class ClaudeAIService:
 - 強調個人選擇和行動的重要性"""
 
         try:
+            print(f"[AI] 開始呼叫 Claude API，牌數: {len(cards)}")
             # 使用 Claude 3.5 Sonnet 作為主要模型
             response = self.client.messages.create(
                 model="claude-3-5-sonnet-20241022",
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}]
             )
+            print(f"[AI] Claude API 回應成功")
             return response.content[0].text
         except Exception as e:
             import traceback
-            print(f"Claude API 錯誤: {e}")
-            print(f"詳細: {traceback.format_exc()}")
+            error_type = type(e).__name__
+            print(f"[AI] Claude API 錯誤類型: {error_type}")
+            print(f"[AI] Claude API 錯誤訊息: {e}")
+            print(f"[AI] 詳細堆疊: {traceback.format_exc()}")
             return None
 
     async def generate_weekly_horoscope(
