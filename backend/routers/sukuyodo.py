@@ -1,7 +1,10 @@
 """宿曜道 API 路由"""
 from datetime import date
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlmodel import Session
+
+from database import get_session
 from services.sukuyodo import sukuyodo_service
 from services.stats import stats_service
 from models.stats import Features
@@ -41,7 +44,10 @@ async def get_all_mansions():
 
 
 @router.get("/mansion/{date_str}")
-async def get_mansion_by_date(date_str: str):
+def get_mansion_by_date(
+    date_str: str,
+    session: Session = Depends(get_session)
+):
     """
     根據西曆生日查詢本命宿
 
@@ -76,7 +82,7 @@ async def get_mansion_by_date(date_str: str):
     mansion = sukuyodo_service.get_mansion(birth_date)
 
     # 記錄使用統計
-    await stats_service.record_usage(Features.SUKUYODO_LOOKUP)
+    stats_service.log_usage(session, Features.SUKUYODO_LOOKUP)
 
     return {
         "success": True,
@@ -85,7 +91,10 @@ async def get_mansion_by_date(date_str: str):
 
 
 @router.post("/compatibility")
-async def calculate_compatibility(request: CompatibilityRequest):
+def calculate_compatibility(
+    request: CompatibilityRequest,
+    session: Session = Depends(get_session)
+):
     """
     計算雙人相性
 
@@ -118,7 +127,7 @@ async def calculate_compatibility(request: CompatibilityRequest):
     result = sukuyodo_service.calculate_compatibility(date1, date2)
 
     # 記錄使用統計
-    await stats_service.record_usage(Features.SUKUYODO_COMPATIBILITY)
+    stats_service.log_usage(session, Features.SUKUYODO_COMPATIBILITY)
 
     return {
         "success": True,
