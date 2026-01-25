@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 interface DrawnCard {
@@ -32,18 +32,18 @@ const reading = ref<TarotReading | null>(null)
 const cards = ref<Map<number, TarotCard>>(new Map())
 const loading = ref(true)
 const revealedCards = ref<Set<number>>(new Set())
+const interpreting = ref(false)
+const interpretError = ref('')
 
 const apiUrl = import.meta.env.VITE_API_URL || 'https://dashastro-api.onrender.com'
 
 onMounted(async () => {
   try {
-    // 載入解讀結果
     const readingRes = await fetch(`${apiUrl}/api/tarot/readings/${route.params.id}`)
     if (readingRes.ok) {
       reading.value = await readingRes.json()
     }
 
-    // 載入牌卡資料
     const cardsRes = await fetch(`${apiUrl}/api/tarot/cards/major`)
     if (cardsRes.ok) {
       const allCards: TarotCard[] = await cardsRes.json()
@@ -66,6 +66,45 @@ const allRevealed = computed(() => {
   if (!reading.value) return false
   return reading.value.cards_drawn.every(dc => revealedCards.value.has(dc.position))
 })
+
+// 當所有牌翻開且沒有 AI 解讀時，自動請求解讀
+watch(allRevealed, async (revealed) => {
+  if (revealed && reading.value && !reading.value.ai_interpretation && !interpreting.value) {
+    await requestInterpretation()
+  }
+})
+
+async function requestInterpretation() {
+  if (!reading.value || interpreting.value) return
+
+  interpreting.value = true
+  interpretError.value = ''
+
+  try {
+    const res = await fetch(`${apiUrl}/api/tarot/interpret`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        reading_id: reading.value.id
+      })
+    })
+
+    if (res.ok) {
+      const data = await res.json()
+      if (data.interpretation) {
+        reading.value.ai_interpretation = data.interpretation
+      } else if (data.message) {
+        interpretError.value = data.message
+      }
+    } else {
+      interpretError.value = '解讀服務暫時無法使用'
+    }
+  } catch (e) {
+    interpretError.value = '網路連線失敗'
+  } finally {
+    interpreting.value = false
+  }
+}
 </script>
 
 <template>
@@ -149,13 +188,22 @@ const allRevealed = computed(() => {
             </p>
           </div>
 
-          <div v-if="reading.ai_interpretation" class="ai-interpretation card card-gold">
-            <h2>AI 綜合解讀</h2>
-            <p>{{ reading.ai_interpretation }}</p>
+          <!-- AI 解讀區塊 -->
+          <div v-if="interpreting" class="ai-loading card card-gold">
+            <sl-spinner style="font-size: 1.5rem;"></sl-spinner>
+            <p>AI 正在解讀你的牌陣...</p>
           </div>
 
-          <div v-else class="ai-placeholder card">
-            <p>AI 解讀服務開發中，敬請期待</p>
+          <div v-else-if="reading.ai_interpretation" class="ai-interpretation card card-gold">
+            <h2>AI 綜合解讀</h2>
+            <p class="ai-text">{{ reading.ai_interpretation }}</p>
+          </div>
+
+          <div v-else-if="interpretError" class="ai-error card">
+            <p>{{ interpretError }}</p>
+            <button class="btn-gold retry-btn" @click="requestInterpretation">
+              重試
+            </button>
           </div>
         </section>
 
@@ -350,17 +398,42 @@ const allRevealed = computed(() => {
   line-height: 1.7;
 }
 
-.ai-interpretation {
+.ai-loading {
   text-align: center;
+  padding: var(--space-8);
+}
+
+.ai-loading p {
+  margin-top: var(--space-4);
+  color: var(--text-secondary);
+}
+
+.ai-interpretation {
+  padding: var(--space-6);
 }
 
 .ai-interpretation h2 {
   color: var(--stellar-gold);
   margin-bottom: var(--space-4);
+  text-align: center;
 }
 
-.ai-placeholder {
+.ai-text {
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.ai-error {
   text-align: center;
+  padding: var(--space-6);
+}
+
+.ai-error p {
   color: var(--text-muted);
+  margin-bottom: var(--space-4);
+}
+
+.retry-btn {
+  padding: var(--space-2) var(--space-4);
 }
 </style>
