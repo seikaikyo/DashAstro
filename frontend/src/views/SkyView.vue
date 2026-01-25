@@ -249,19 +249,87 @@ const retrogradeExplanation = computed(() => {
   return explanations.join('\n')
 })
 
-// 元素說明
+// 用戶所屬元素
+const myElement = computed(() => {
+  if (!profile.value.zodiacCode) return ''
+  const fireSign = ['ARI', 'LEO', 'SAG']
+  const earthSign = ['TAU', 'VIR', 'CAP']
+  const airSign = ['GEM', 'LIB', 'AQU']
+  const waterSign = ['CAN', 'SCO', 'PIS']
+
+  if (fireSign.includes(profile.value.zodiacCode)) return 'fire'
+  if (earthSign.includes(profile.value.zodiacCode)) return 'earth'
+  if (airSign.includes(profile.value.zodiacCode)) return 'air'
+  if (waterSign.includes(profile.value.zodiacCode)) return 'water'
+  return ''
+})
+
+// 元素說明（個人化）
 const elementExplanation = computed(() => {
   if (!summary.value) return ''
   const dominant = summary.value.dominant_element
+  const myEl = myElement.value
 
-  const descriptions: Record<string, string> = {
-    fire: '火象能量主導：整體氛圍積極、熱情、有衝勁。火象星座（牡羊、獅子、射手）狀態活躍，其他星座也會感染到這股熱情。',
-    earth: '土象能量主導：整體氛圍務實、穩定、重視實際。土象星座（金牛、處女、魔羯）狀態舒適，適合處理實務工作。',
-    air: '風象能量主導：整體氛圍活潑、善於溝通、思維敏捷。風象星座（雙子、天秤、水瓶）狀態出色，社交互動順暢。',
-    water: '水象能量主導：整體氛圍敏感、直覺強、情感豐富。水象星座（巨蟹、天蠍、雙魚）狀態敏銳，容易感應他人情緒。'
+  // 基本說明
+  const baseDescriptions: Record<string, string> = {
+    fire: '火象能量主導：整體氛圍積極、熱情、有衝勁。',
+    earth: '土象能量主導：整體氛圍務實、穩定、重視實際。',
+    air: '風象能量主導：整體氛圍活潑、善於溝通、思維敏捷。',
+    water: '水象能量主導：整體氛圍敏感、直覺強、情感豐富。'
   }
 
-  return descriptions[dominant] || '能量均衡分布。'
+  let result = baseDescriptions[dominant] || '能量均衡分布。'
+
+  // 個人化影響
+  if (myEl && isProfileSet.value) {
+    if (myEl === dominant) {
+      result += '\n你的元素正處於主導地位，整體運勢順暢，做事容易得到支持。'
+    } else {
+      // 元素相性
+      const compatibility: Record<string, Record<string, string>> = {
+        fire: { earth: '需要更多耐心', air: '靈感和行動力都不錯', water: '情緒容易起伏' },
+        earth: { fire: '可能感到躁動', air: '適合學習新事物', water: '直覺和實務可以結合' },
+        air: { fire: '思考和行動力俱佳', earth: '適合落實想法', water: '情感交流順暢' },
+        water: { fire: '需要平衡情緒', earth: '安全感增強', air: '溝通表達更清晰' }
+      }
+      const effect = compatibility[myEl]?.[dominant] || '保持平常心'
+      result += `\n對你的影響：${effect}。`
+    }
+  }
+
+  return result
+})
+
+// 元素對生活的影響（個人化）
+const elementLifeImpact = computed(() => {
+  if (!summary.value || !isProfileSet.value) return null
+  const dominant = summary.value.dominant_element
+  const myEl = myElement.value
+
+  const impacts: Record<string, { love: string; career: string; health: string }> = {
+    fire: {
+      love: '感情上容易衝動，適合主動表白，但要注意控制脾氣',
+      career: '工作上動力充沛，適合開拓新項目，但要避免急躁',
+      health: '精力旺盛但容易上火，注意休息和降火'
+    },
+    earth: {
+      love: '感情趨於穩定，適合認真談長期關係，但要避免太悶',
+      career: '工作上踏實有成效，適合處理細節和財務問題',
+      health: '身體狀態穩定，但要注意活動筋骨，避免僵硬'
+    },
+    air: {
+      love: '社交活躍，容易認識新對象，但要避免三心二意',
+      career: '思維敏捷，適合溝通協調和創意工作',
+      health: '精神活躍但容易分心，注意睡眠品質'
+    },
+    water: {
+      love: '情感豐富敏銳，適合深度交流，但要避免想太多',
+      career: '直覺準確，適合需要同理心的工作，但要避免情緒化',
+      health: '容易受情緒影響，注意情緒調節和水分攝取'
+    }
+  }
+
+  return impacts[dominant] || null
 })
 
 // 行星說明
@@ -281,6 +349,54 @@ const planetMeanings: Record<string, string> = {
 function getPlanetMeaning(planet: string): string {
   return planetMeanings[planet] || ''
 }
+
+// 行星對用戶的具體影響
+const myPlanetImpacts = computed(() => {
+  if (!summary.value || !isProfileSet.value) return []
+
+  const impacts: Array<{ planet: string; name: string; sign: string; impact: string }> = []
+
+  for (const p of summary.value.planet_positions) {
+    // 只顯示在用戶星座的行星
+    if (p.sign_code !== profile.value.zodiacCode) continue
+
+    let impact = ''
+    switch (p.planet) {
+      case 'sun':
+        impact = '這是你的生日月！整體運勢最旺，適合展現自我、開始重要計畫。'
+        break
+      case 'moon':
+        impact = '情感敏銳度提高，容易感應到內心需求，適合內省和照顧自己。'
+        break
+      case 'mercury':
+        impact = '思維清晰、表達順暢，適合學習、溝通、簽約。'
+        break
+      case 'venus':
+        impact = '魅力提升、感情運佳！適合約會、表白、添購美麗事物。'
+        break
+      case 'mars':
+        impact = '行動力爆棚！適合運動、競爭、開拓，但要注意控制脾氣。'
+        break
+      case 'jupiter':
+        impact = '好運降臨！機會增加、貴人相助，可以大膽嘗試。'
+        break
+      case 'saturn':
+        impact = '責任加重，可能面對挑戰，但這是成長的機會。'
+        break
+      default:
+        impact = `${p.name_zh}正經過你的星座，相關領域能量增強。`
+    }
+
+    impacts.push({
+      planet: p.planet,
+      name: p.name_zh,
+      sign: p.sign_name,
+      impact
+    })
+  }
+
+  return impacts
+})
 </script>
 
 <template>
@@ -426,6 +542,7 @@ function getPlanetMeaning(planet: string): string {
                   :style="{ background: elementColors[element] }"
                 ></span>
                 {{ elementNames[element] }}
+                <span v-if="element === myElement" class="my-element-badge">你</span>
               </div>
               <div class="bar-track">
                 <div
@@ -439,36 +556,73 @@ function getPlanetMeaning(planet: string): string {
               <span class="element-count">{{ count }}</span>
             </div>
           </div>
+
+          <!-- 元素對生活的影響 -->
+          <div v-if="elementLifeImpact" class="element-life-impact">
+            <h3>{{ summary.dominant_element_zh }}能量對你的影響</h3>
+            <div class="impact-grid">
+              <div class="impact-item">
+                <span class="impact-icon">&#128151;</span>
+                <span class="impact-label">感情</span>
+                <p class="impact-text">{{ elementLifeImpact.love }}</p>
+              </div>
+              <div class="impact-item">
+                <span class="impact-icon">&#128188;</span>
+                <span class="impact-label">事業</span>
+                <p class="impact-text">{{ elementLifeImpact.career }}</p>
+              </div>
+              <div class="impact-item">
+                <span class="impact-icon">&#128154;</span>
+                <span class="impact-label">健康</span>
+                <p class="impact-text">{{ elementLifeImpact.health }}</p>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section class="planets-section">
           <h2>行星位置</h2>
           <p class="section-desc">
-            點擊行星卡片查看該行星的意義。行星進入你的星座時，代表該領域能量增強。
+            懸停查看行星意義。標記「我」表示行星在你的星座，該能量特別強烈。
           </p>
+
+          <!-- 對你有直接影響的行星 -->
+          <div v-if="myPlanetImpacts.length > 0" class="my-planets-impact">
+            <h3>現在對你有直接影響的行星</h3>
+            <div class="impact-cards">
+              <div v-for="p in myPlanetImpacts" :key="p.planet" class="planet-impact-card">
+                <div class="planet-impact-header">
+                  <span class="planet-impact-name">{{ p.name }}</span>
+                  <span class="planet-impact-sign">在 {{ p.sign }}</span>
+                </div>
+                <p class="planet-impact-text">{{ p.impact }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div v-else-if="isProfileSet" class="no-planets-in-sign">
+            <p>目前沒有行星在你的星座，整體能量較為平穩。</p>
+          </div>
+
           <div class="planets-grid">
-            <sl-tooltip
+            <div
               v-for="planet in summary.planet_positions"
               :key="planet.planet"
-              :content="getPlanetMeaning(planet.planet)"
-              hoist
+              :class="[
+                'planet-card card',
+                {
+                  'my-sign': planet.sign_code === profile.zodiacCode,
+                  'partner-sign': selectedPartner && planet.sign_code === selectedPartner.zodiacCode
+                }
+              ]"
+              :title="getPlanetMeaning(planet.planet)"
             >
-              <div
-                :class="[
-                  'planet-card card',
-                  {
-                    'my-sign': planet.sign_code === profile.zodiacCode,
-                    'partner-sign': selectedPartner && planet.sign_code === selectedPartner.zodiacCode
-                  }
-                ]"
-              >
-                <div class="planet-name">{{ planet.name_zh }}</div>
-                <div class="planet-sign">{{ planet.sign_name }}</div>
-                <div class="planet-degree">{{ planet.degree.toFixed(1) }}°</div>
-                <div v-if="planet.sign_code === profile.zodiacCode" class="planet-tag my">我</div>
-                <div v-else-if="selectedPartner && planet.sign_code === selectedPartner.zodiacCode" class="planet-tag partner">TA</div>
-              </div>
-            </sl-tooltip>
+              <div class="planet-name">{{ planet.name_zh }}</div>
+              <div class="planet-sign">{{ planet.sign_name }}</div>
+              <div class="planet-degree">{{ planet.degree.toFixed(1) }}°</div>
+              <div v-if="planet.sign_code === profile.zodiacCode" class="planet-tag my">我</div>
+              <div v-else-if="selectedPartner && planet.sign_code === selectedPartner.zodiacCode" class="planet-tag partner">TA</div>
+            </div>
           </div>
 
           <!-- 行星與星座關係說明 -->
@@ -713,6 +867,122 @@ function getPlanetMeaning(planet: string): string {
   color: var(--text-muted);
   font-size: 0.9rem;
   margin-bottom: var(--space-4);
+}
+
+/* 元素對生活的影響 */
+.element-life-impact {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.element-life-impact h3 {
+  font-size: 1rem;
+  color: var(--stellar-gold);
+  margin-bottom: var(--space-4);
+}
+
+.impact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+.impact-item {
+  background: var(--cosmos-twilight);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+.impact-icon {
+  font-size: 1.5rem;
+  margin-right: var(--space-2);
+}
+
+.impact-label {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.impact-text {
+  margin-top: var(--space-2);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.my-element-badge {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  background: var(--stellar-gold);
+  color: var(--cosmos-night);
+  border-radius: var(--radius-sm);
+  margin-left: var(--space-2);
+}
+
+/* 行星對你的影響 */
+.my-planets-impact {
+  margin-bottom: var(--space-6);
+  padding: var(--space-5);
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(106, 90, 142, 0.1));
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-lg);
+}
+
+.my-planets-impact h3 {
+  font-size: 1rem;
+  color: var(--stellar-gold);
+  margin-bottom: var(--space-4);
+}
+
+.impact-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.planet-impact-card {
+  background: var(--cosmos-dusk);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+.planet-impact-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.planet-impact-name {
+  font-weight: 600;
+  color: var(--stellar-gold);
+  font-size: 1.1rem;
+}
+
+.planet-impact-sign {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.planet-impact-text {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.no-planets-in-sign {
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  background: var(--cosmos-twilight);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.no-planets-in-sign p {
+  color: var(--text-muted);
+  margin: 0;
 }
 
 /* 元素分布 */
