@@ -117,6 +117,13 @@ def get_reading(reading_id: str, session: Session = Depends(get_session)):
     return reading
 
 
+@router.get("/ai-status")
+def get_ai_status():
+    """檢查 AI 服務狀態"""
+    from services.claude_ai import claude_service
+    return claude_service.get_status()
+
+
 @router.post("/interpret")
 async def interpret_reading(
     request: InterpretRequest,

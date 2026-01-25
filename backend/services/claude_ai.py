@@ -20,6 +20,14 @@ class ClaudeAIService:
     def _is_available(self) -> bool:
         return self.client is not None
 
+    def get_status(self) -> dict:
+        """取得服務狀態"""
+        return {
+            "available": self._is_available(),
+            "has_api_key": bool(settings.anthropic_api_key),
+            "api_key_prefix": settings.anthropic_api_key[:10] + "..." if settings.anthropic_api_key else None
+        }
+
     async def interpret_tarot_reading(
         self,
         cards: list[dict],
@@ -96,29 +104,18 @@ class ClaudeAIService:
 - 強調個人選擇和行動的重要性"""
 
         try:
+            # 使用 Claude 3.5 Sonnet 作為主要模型
             response = self.client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-3-5-sonnet-20241022",
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}]
             )
             return response.content[0].text
         except Exception as e:
-            # 記錄詳細錯誤
             import traceback
             print(f"Claude API 錯誤: {e}")
             print(f"詳細: {traceback.format_exc()}")
-
-            # 嘗試備用模型
-            try:
-                response = self.client.messages.create(
-                    model="claude-3-5-sonnet-20241022",
-                    max_tokens=1024,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                return response.content[0].text
-            except Exception as e2:
-                print(f"備用模型錯誤: {e2}")
-                return None
+            return None
 
     async def generate_weekly_horoscope(
         self,
@@ -176,8 +173,9 @@ class ClaudeAIService:
 - 只回覆 JSON，不要其他文字"""
 
         try:
+            # 使用 Claude 3.5 Sonnet 作為主要模型
             response = self.client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-3-5-sonnet-20241022",
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -192,24 +190,10 @@ class ClaudeAIService:
 
             return json.loads(result_text)
         except Exception as e:
+            import traceback
             print(f"Claude API 錯誤: {e}")
-            # 嘗試備用模型
-            try:
-                response = self.client.messages.create(
-                    model="claude-3-5-sonnet-20241022",
-                    max_tokens=1024,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                import json
-                result_text = response.content[0].text.strip()
-                if result_text.startswith("```"):
-                    result_text = result_text.split("\n", 1)[1]
-                if result_text.endswith("```"):
-                    result_text = result_text.rsplit("\n", 1)[0]
-                return json.loads(result_text)
-            except Exception as e2:
-                print(f"備用模型錯誤: {e2}")
-                return None
+            print(f"詳細: {traceback.format_exc()}")
+            return None
 
 
 # 全域實例
