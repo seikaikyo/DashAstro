@@ -674,14 +674,15 @@ async function fetchLuckyDayCategories() {
 }
 
 async function fetchLuckyDays() {
-  if (!myBirthDate.value || !selectedLuckyCategory.value || !selectedLuckyAction.value) return
+  const queryDate = birthDate.value || myBirthDate.value
+  if (!queryDate || !selectedLuckyCategory.value || !selectedLuckyAction.value) return
 
   luckyDayLoading.value = true
   luckyDayResult.value = null
 
   try {
     const res = await fetch(
-      `${apiUrl}/api/sukuyodo/lucky-days/${myBirthDate.value}?category=${selectedLuckyCategory.value}&action=${selectedLuckyAction.value}`
+      `${apiUrl}/api/sukuyodo/lucky-days/${queryDate}?category=${selectedLuckyCategory.value}&action=${selectedLuckyAction.value}`
     )
     if (res.ok) {
       const data = await res.json()
