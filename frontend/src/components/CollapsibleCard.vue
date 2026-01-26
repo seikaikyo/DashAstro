@@ -33,7 +33,12 @@ watch(isOpen, (val) => {
 
 <template>
   <div :class="['collapsible-card', { open: isOpen }]">
-    <button class="card-header" @click="toggle">
+    <button
+      class="card-header"
+      @click="toggle"
+      :aria-expanded="isOpen"
+      :aria-controls="`content-${$.uid}`"
+    >
       <div class="header-left">
         <sl-icon v-if="icon" :name="icon" class="header-icon"></sl-icon>
         <div class="header-titles">
@@ -46,7 +51,7 @@ watch(isOpen, (val) => {
         <sl-icon :name="isOpen ? 'caret-up' : 'caret-down'" class="toggle-icon"></sl-icon>
       </div>
     </button>
-    <div class="card-content" :class="{ expanded: isOpen }">
+    <div :id="`content-${$.uid}`" class="card-content" :class="{ expanded: isOpen }">
       <div class="content-inner">
         <slot></slot>
       </div>
