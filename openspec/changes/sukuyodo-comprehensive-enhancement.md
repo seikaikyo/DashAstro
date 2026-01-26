@@ -232,12 +232,12 @@ created: 2026-01-26
 ## Checklist
 
 ### Phase 1（運勢儀表板）
-- [ ] 建立 FortuneCard.vue 元件
-- [ ] 實作日運勢 Tab
-- [ ] 實作週運勢 Tab
-- [ ] 實作月運勢 Tab
-- [ ] 實作年運勢 Tab
-- [ ] 整合開運指引（方位/顏色/數字）
+- [x] 日運勢 CollapsibleCard（含分數條、建議、幸運指南）
+- [x] 週運勢 CollapsibleCard（含每日預覽）
+- [x] 月運勢 CollapsibleCard（含月主題、週別預覽）
+- [x] 年運勢 CollapsibleCard（含月趨勢圖、機會/注意事項）
+- [x] 整合開運指引（方位/顏色/數字）
+- 備註：採用 CollapsibleCard 而非 Tab 設計，UX 更佳
 
 ### Phase 2（二十七宿輪盤）
 - [ ] 建立 MansionWheel.vue 元件
@@ -246,9 +246,11 @@ created: 2026-01-26
 - [ ] 高亮關係連線動畫
 
 ### Phase 3（求職離職指引）
-- [ ] 建立 CareerGuidance.vue 元件
-- [ ] 顯示適合職業類型
-- [ ] 顯示 30 天吉日日曆
+- [x] 在 SukuyodoView.vue 實作求職離職指引 CollapsibleCard
+- [x] 顯示本命宿職業特質與適合職業類型
+- [x] 顯示求職面試吉日列表
+- [x] 顯示離職提出吉日列表
+- [x] 顯示應避免日期與原因
 
 ### Phase 4（宿曜道典故）
 - [x] 在 SukuyodoView.vue 新增 history-section（可展開式）
