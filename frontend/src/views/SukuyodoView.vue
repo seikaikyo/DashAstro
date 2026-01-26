@@ -277,7 +277,6 @@ const lookupLoading = ref(false)
 const lookupError = ref('')
 
 // 相性診斷
-const date1 = ref('')
 const date2 = ref('')
 const compatibility = ref<CompatibilityResult | null>(null)
 const compatLoading = ref(false)
@@ -738,7 +737,7 @@ const getScoreClass = (score: number) => {
 }
 
 const calculateCompatibility = async () => {
-  if (!date1.value || !date2.value) return
+  if (!myBirthDate.value || !date2.value) return
 
   compatLoading.value = true
   compatError.value = ''
@@ -749,7 +748,7 @@ const calculateCompatibility = async () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        date1: date1.value,
+        date1: myBirthDate.value,
         date2: date2.value
       })
     })
@@ -1323,43 +1322,52 @@ const toggleLunarDate = (ld: LunarDate) => {
 
         <!-- 雙人相性診斷卡片 -->
         <CollapsibleCard
-          title="雙人相性診斷"
-          subtitle="輸入兩人生日分析緣分"
-          icon="people-fill"
+          title="與對方的相性"
+          subtitle="輸入對方生日，分析你們的緣分"
+          icon="heart"
           :badge="compatibility ? `${compatibility.score} ${getScoreLevel(compatibility.score).text}` : undefined"
           :badge-class="compatibility ? getScoreLevel(compatibility.score).class : ''"
           :default-open="false"
         >
           <div class="compat-content">
-            <div class="compat-form">
-              <div class="form-group">
-                <sl-input
-                  type="date"
-                  name="compat-person1-birthdate"
-                  v-model="date1"
-                  label="第一個人的生日"
-                  :max="new Date().toISOString().split('T')[0]"
-                ></sl-input>
-              </div>
-              <div class="form-group">
-                <sl-input
-                  type="date"
-                  name="compat-person2-birthdate"
-                  v-model="date2"
-                  label="第二個人的生日"
-                  :max="new Date().toISOString().split('T')[0]"
-                ></sl-input>
-              </div>
-              <button
-                class="btn-gold"
-                @click="calculateCompatibility"
-                :disabled="!date1 || !date2 || compatLoading"
-                :aria-busy="compatLoading"
-              >
-                <sl-spinner v-if="compatLoading"></sl-spinner>
-                <span v-else>分析相性</span>
-              </button>
+            <!-- 未設定自己生日 -->
+            <div v-if="!myBirthDate" class="compat-no-birth">
+              <sl-icon name="exclamation-circle"></sl-icon>
+              <p>請先設定你的生日才能進行相性診斷</p>
+              <router-link to="/profile" class="link-btn">前往設定</router-link>
             </div>
+
+            <template v-else>
+              <div class="compat-form">
+                <!-- 顯示自己的本命宿 -->
+                <div class="my-mansion-display" v-if="mansion">
+                  <span class="label">你的本命宿</span>
+                  <ruby class="mansion-name">
+                    {{ mansion.name_jp }}<rp>(</rp><rt>{{ mansion.reading }}</rt><rp>)</rp>
+                  </ruby>
+                  <span class="mansion-element" :style="{ color: elementColors[mansion.element] }">（{{ mansion.element }}）</span>
+                </div>
+
+                <div class="form-group">
+                  <sl-input
+                    type="date"
+                    name="compat-person2-birthdate"
+                    v-model="date2"
+                    label="對方的生日"
+                    :max="new Date().toISOString().split('T')[0]"
+                  ></sl-input>
+                </div>
+                <button
+                  class="btn-gold"
+                  @click="calculateCompatibility"
+                  :disabled="!date2 || compatLoading"
+                  :aria-busy="compatLoading"
+                >
+                  <sl-spinner v-if="compatLoading"></sl-spinner>
+                  <span v-else>分析相性</span>
+                </button>
+              </div>
+            </template>
 
             <div v-if="compatError" class="error-msg">
               {{ compatError }}
@@ -2355,6 +2363,63 @@ ruby rp {
 .compatibility-section {
   max-width: 700px;
   margin: 0 auto var(--space-8);
+}
+
+.compat-no-birth {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.compat-no-birth sl-icon {
+  font-size: 2rem;
+  color: var(--border-default);
+}
+
+.compat-no-birth p {
+  margin: 0;
+}
+
+.compat-no-birth .link-btn {
+  display: inline-flex;
+  padding: var(--space-2) var(--space-4);
+  background: var(--stellar-gold);
+  color: var(--cosmos-night);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.my-mansion-display {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--cosmos-twilight);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2);
+}
+
+.my-mansion-display .label {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.my-mansion-display .mansion-name {
+  font-weight: 600;
+  color: var(--stellar-gold);
+}
+
+.my-mansion-display .mansion-name rt {
+  font-size: 0.6em;
+}
+
+.my-mansion-display .mansion-element {
+  font-weight: 500;
 }
 
 .compat-form {
