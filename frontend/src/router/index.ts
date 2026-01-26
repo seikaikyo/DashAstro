@@ -84,6 +84,15 @@ const router = createRouter({
         title: '宿曜道 - 真言宗密教占星術 | 本命宿查詢',
         description: '源自印度、唐代傳入日本的密教占星術。輸入生日查詢你的本命宿，使用三九秘法分析雙人相性。'
       }
+    },
+    {
+      path: '/sukuyodo-v2',
+      name: 'sukuyodo-v2',
+      component: () => import('../views/SukuyodoViewV2.vue'),
+      meta: {
+        title: '宿曜道 V2 - 真言宗密教占星術 | 本命宿查詢',
+        description: '源自印度、唐代傳入日本的密教占星術。輸入生日查詢你的本命宿，使用三九秘法分析雙人相性。'
+      }
     }
   ],
   scrollBehavior(to, from, savedPosition) {
