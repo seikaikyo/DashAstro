@@ -786,6 +786,19 @@ const getFortuneLevel = (score: number) => {
   return { text: '凶', class: 'warning' }
 }
 
+// 當日宿關係類型的樣式類別
+const getMansionRelationClass = (relationType: string) => {
+  const classMap: Record<string, string> = {
+    '榮親': 'relation-excellent',
+    '業胎': 'relation-good',
+    '命': 'relation-fair',
+    '友衰': 'relation-neutral',
+    '危成': 'relation-caution',
+    '安壞': 'relation-warning'
+  }
+  return classMap[relationType] || 'relation-neutral'
+}
+
 const getScoreClass = (score: number) => {
   if (score >= 90) return 'excellent'
   if (score >= 75) return 'good'
@@ -1030,6 +1043,18 @@ const toggleLunarDate = (ld: LunarDate) => {
                     <span class="element-match" :style="{ color: elementColors[dailyFortune.weekday.element] }">
                       {{ dailyFortune.weekday.element }}
                     </span>
+                  </div>
+                  <!-- 當日宿關係（核心運勢因素） -->
+                  <div v-if="dailyFortune.mansion_relation" class="mansion-relation-info">
+                    <div class="day-mansion">
+                      <span class="relation-label">當日宿</span>
+                      <ruby>{{ dailyFortune.day_mansion?.name_jp }}<rp>(</rp><rt>{{ dailyFortune.day_mansion?.reading }}</rt><rp>)</rp></ruby>
+                    </div>
+                    <div class="relation-type" :class="getMansionRelationClass(dailyFortune.mansion_relation.type)">
+                      <span class="relation-name">{{ dailyFortune.mansion_relation.name }}</span>
+                      <span class="relation-reading">{{ dailyFortune.mansion_relation.reading }}</span>
+                    </div>
+                    <p class="relation-desc">{{ dailyFortune.mansion_relation.description }}</p>
                   </div>
                   <div class="lucky-items-compact">
                     <div class="lucky-item">
@@ -2249,6 +2274,77 @@ const toggleLunarDate = (ld: LunarDate) => {
 .fortune-score-card.fair { color: #C4A052; }
 .fortune-score-card.caution { color: #E89B3C; }
 .fortune-score-card.warning { color: #E85D4C; }
+
+/* 當日宿關係資訊 */
+.mansion-relation-info {
+  margin-top: var(--space-4);
+  padding: var(--space-3);
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.mansion-relation-info .day-mansion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.mansion-relation-info .relation-label {
+  opacity: 0.7;
+}
+
+.mansion-relation-info .relation-type {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  font-weight: 600;
+}
+
+.mansion-relation-info .relation-reading {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.mansion-relation-info .relation-desc {
+  margin-top: var(--space-2);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* 關係類型顏色 */
+.relation-type.relation-excellent {
+  background: rgba(74, 155, 90, 0.3);
+  color: #4A9B5A;
+}
+.relation-type.relation-good {
+  background: rgba(196, 160, 82, 0.3);
+  color: var(--stellar-gold);
+}
+.relation-type.relation-fair {
+  background: rgba(160, 140, 100, 0.3);
+  color: #B0A070;
+}
+.relation-type.relation-neutral {
+  background: rgba(100, 100, 100, 0.3);
+  color: var(--text-secondary);
+}
+.relation-type.relation-caution {
+  background: rgba(232, 155, 60, 0.3);
+  color: #E89B3C;
+}
+.relation-type.relation-warning {
+  background: rgba(232, 93, 76, 0.3);
+  color: #E85D4C;
+}
 
 .fortune-score-card.large {
   padding: var(--space-4);
