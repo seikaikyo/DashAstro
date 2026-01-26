@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useProfile, ZODIAC_SIGNS } from '../stores/profile'
+import { useProfile } from '../stores/profile'
 import CollapsibleCard from '../components/CollapsibleCard.vue'
 
 const { profile, myBirthDate, partnersWithBirthDate } = useProfile()
