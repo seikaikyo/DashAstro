@@ -389,6 +389,27 @@ interface CareerGuidance {
 const careerGuidance = ref<CareerGuidance | null>(null)
 const careerLoading = ref(false)
 
+// 收藏對象配對
+interface PartnerCompatibility {
+  partnerId: string
+  nickname: string
+  birthDate: string
+  mansion: {
+    name_jp: string
+    reading: string
+    element: string
+  }
+  relation: {
+    type: string
+    name: string
+    reading: string
+    description: string
+  }
+  score: number
+}
+const partnerCompatibilities = ref<PartnerCompatibility[]>([])
+const partnerCompatLoading = ref(false)
+
 // 元素顏色
 const elementColors: Record<string, string> = {
   '木': '#4A9B5A',
@@ -643,6 +664,60 @@ const fetchCareerGuidance = async () => {
     console.error('Failed to fetch career guidance')
   } finally {
     careerLoading.value = false
+  }
+}
+
+// 取得收藏對象配對關係
+const fetchPartnerCompatibilities = async () => {
+  if (!myBirthDate.value || partnersWithBirthDate.value.length === 0) return
+
+  partnerCompatLoading.value = true
+  partnerCompatibilities.value = []
+
+  try {
+    const results: PartnerCompatibility[] = []
+
+    for (const partner of partnersWithBirthDate.value) {
+      const res = await fetch(`${apiUrl}/api/sukuyodo/compatibility`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date1: myBirthDate.value,
+          date2: partner.birthDate
+        })
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success) {
+          const compat = data.data as CompatibilityResult
+          results.push({
+            partnerId: partner.id,
+            nickname: partner.nickname,
+            birthDate: partner.birthDate!,
+            mansion: {
+              name_jp: compat.person2.mansion,
+              reading: compat.person2.reading,
+              element: compat.person2.element
+            },
+            relation: {
+              type: compat.relation.type,
+              name: compat.relation.name,
+              reading: compat.relation.reading,
+              description: compat.relation.description
+            },
+            score: compat.score
+          })
+        }
+      }
+    }
+
+    // 依分數由高到低排序
+    partnerCompatibilities.value = results.sort((a, b) => b.score - a.score)
+  } catch (e) {
+    console.error('Failed to fetch partner compatibilities')
+  } finally {
+    partnerCompatLoading.value = false
   }
 }
 
@@ -1462,6 +1537,82 @@ const toggleLunarDate = (ld: LunarDate) => {
             <template v-else>
               <p class="no-data">請先查詢本命宿以取得求職離職指引</p>
             </template>
+          </div>
+        </CollapsibleCard>
+
+        <!-- 我的配對關係 -->
+        <CollapsibleCard
+          title="我的配對關係"
+          subtitle="一鍵查看你與收藏對象的宿曜相性"
+          icon="people-fill"
+          :default-open="false"
+          @toggle="(open: boolean) => { if (open && partnerCompatibilities.length === 0) fetchPartnerCompatibilities() }"
+        >
+          <div class="partner-compat-content">
+            <!-- 未設定自己生日 -->
+            <div v-if="!myBirthDate" class="empty-state">
+              <sl-icon name="calendar-x"></sl-icon>
+              <p>請先設定你的生日</p>
+              <router-link to="/profile" class="link-btn">前往設定</router-link>
+            </div>
+
+            <!-- 無收藏對象 -->
+            <div v-else-if="partnersWithBirthDate.length === 0" class="empty-state">
+              <sl-icon name="person-plus"></sl-icon>
+              <p>你還沒有設定有生日的關注對象</p>
+              <router-link to="/profile" class="link-btn">新增關注對象</router-link>
+            </div>
+
+            <!-- 載入中 -->
+            <div v-else-if="partnerCompatLoading" class="loading-state">
+              <sl-spinner></sl-spinner>
+              <span>計算配對中...</span>
+            </div>
+
+            <!-- 配對結果 -->
+            <template v-else-if="partnerCompatibilities.length > 0">
+              <div
+                v-for="pc in partnerCompatibilities"
+                :key="pc.partnerId"
+                class="partner-compat-card"
+              >
+                <div class="pc-header">
+                  <span class="pc-nickname">{{ pc.nickname }}</span>
+                  <span class="pc-score" :class="getScoreColorClass(pc.score)">{{ pc.score }} 分</span>
+                </div>
+                <div class="pc-mansion">
+                  <span>生日 {{ pc.birthDate }}</span>
+                  <span class="pc-arrow">→</span>
+                  <ruby>
+                    {{ pc.mansion.name_jp }}<rp>(</rp><rt>{{ pc.mansion.reading }}</rt><rp>)</rp>
+                  </ruby>
+                  <span class="pc-element" :style="{ color: elementColors[pc.mansion.element] }">（{{ pc.mansion.element }}）</span>
+                </div>
+                <div class="pc-relation">
+                  <span class="pc-relation-label">與你的關係：</span>
+                  <ruby class="pc-relation-name">
+                    {{ pc.relation.name }}<rp>(</rp><rt>{{ pc.relation.reading }}</rt><rp>)</rp>
+                  </ruby>
+                </div>
+                <p class="pc-desc">{{ pc.relation.description }}</p>
+
+                <!-- 分數條 -->
+                <div class="pc-score-bar">
+                  <div class="bar-fill" :style="{ width: pc.score + '%' }" :class="getScoreColorClass(pc.score)"></div>
+                </div>
+              </div>
+
+              <router-link to="/profile" class="add-partner-link">
+                <sl-icon name="plus-circle"></sl-icon>
+                新增關注對象
+              </router-link>
+            </template>
+
+            <!-- 尚未載入 -->
+            <div v-else class="empty-state">
+              <sl-icon name="arrow-clockwise"></sl-icon>
+              <p>展開此卡片以載入配對資料</p>
+            </div>
           </div>
         </CollapsibleCard>
       </div>
@@ -3666,6 +3817,174 @@ ruby rp {
   .day-date {
     min-width: auto;
   }
+}
+
+/* 我的配對關係 */
+.partner-compat-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.partner-compat-content .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.partner-compat-content .empty-state sl-icon {
+  font-size: 2.5rem;
+  color: var(--border-default);
+}
+
+.partner-compat-content .empty-state p {
+  margin: 0;
+}
+
+.partner-compat-content .link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--stellar-gold);
+  color: var(--cosmos-night);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+
+.partner-compat-content .link-btn:hover {
+  opacity: 0.9;
+}
+
+.partner-compat-content .loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-6);
+  color: var(--text-secondary);
+}
+
+.partner-compat-card {
+  background: var(--cosmos-twilight);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+}
+
+.pc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+
+.pc-nickname {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--stellar-gold);
+}
+
+.pc-score {
+  font-weight: 600;
+  padding: var(--space-1) var(--space-3);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-full);
+}
+
+.pc-score.excellent { color: #4A9B5A; }
+.pc-score.good { color: #7CB3D9; }
+.pc-score.normal { color: #8B7355; }
+.pc-score.caution { color: #E89B3C; }
+.pc-score.warning { color: #E85D4C; }
+
+.pc-mansion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.pc-arrow {
+  color: var(--text-muted);
+}
+
+.pc-element {
+  font-weight: 500;
+}
+
+.pc-relation {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.pc-relation-label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.pc-relation-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.pc-relation-name rt {
+  font-size: 0.6em;
+}
+
+.pc-desc {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: 0 0 var(--space-3);
+  line-height: 1.5;
+}
+
+.pc-score-bar {
+  height: 6px;
+  background: var(--cosmos-night);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.pc-score-bar .bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.3s ease;
+}
+
+.pc-score-bar .bar-fill.excellent { background: #4A9B5A; }
+.pc-score-bar .bar-fill.good { background: #7CB3D9; }
+.pc-score-bar .bar-fill.normal { background: #8B7355; }
+.pc-score-bar .bar-fill.caution { background: #E89B3C; }
+.pc-score-bar .bar-fill.warning { background: #E85D4C; }
+
+.add-partner-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.add-partner-link:hover {
+  border-color: var(--stellar-gold);
+  color: var(--stellar-gold);
 }
 
 /* 二十七宿輪盤 */
