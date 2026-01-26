@@ -468,28 +468,49 @@ class SukuyodoService:
         mansion = self.get_mansion(solar_date)
         user_index = mansion["index"]
 
-        # 各關係類型的距離定義
+        # 各關係類型的距離定義（完整六種關係）
         COMPATIBILITY_TYPES = {
-            "best_for_marriage": {
-                "relation": "榮親",
-                "reading": "えいしん",
-                "distances": [1, 3, 10, 12, 15, 17, 24, 26],
-                "score": 95,
-                "description": "最適合結婚的對象，相處融洽、互相扶持"
+            "mei": {
+                "relation": "命",
+                "reading": "めい",
+                "distances": [0],
+                "score": 85,
+                "description": "如同鏡子般的存在，彼此理解但優缺點皆被放大"
             },
-            "past_life_connection": {
+            "gyotai": {
                 "relation": "業胎",
                 "reading": "ぎょうたい",
                 "distances": [9, 18],
                 "score": 90,
-                "description": "前世之緣，一見如故、心有靈犀"
+                "description": "前世因緣深厚，常有似曾相識之感"
             },
-            "should_avoid": {
+            "eishin": {
+                "relation": "榮親",
+                "reading": "えいしん",
+                "distances": [1, 3, 10, 12, 15, 17, 24, 26],
+                "score": 95,
+                "description": "最適合結婚的對象，互相提攜成長的良緣"
+            },
+            "yusui": {
+                "relation": "友衰",
+                "reading": "ゆうすい",
+                "distances": [2, 5, 11, 13, 14, 16, 22, 25],
+                "score": 70,
+                "description": "相處舒適自在，但需注意不要一起停滯不前"
+            },
+            "ankai": {
                 "relation": "安壊",
                 "reading": "あんかい",
                 "distances": [4, 6, 21, 23],
-                "score": 55,
-                "description": "超有吸引力但危險，容易互相傷害"
+                "score": 50,
+                "description": "強烈吸引力但權力不對等，需謹慎經營"
+            },
+            "kisei": {
+                "relation": "危成",
+                "reading": "きせい",
+                "distances": [7, 8, 19, 20],
+                "score": 75,
+                "description": "互補的關係，需要磨合但能促進彼此成長"
             }
         }
 
