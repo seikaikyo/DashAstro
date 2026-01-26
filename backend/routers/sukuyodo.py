@@ -511,3 +511,71 @@ def get_career_guidance(
         "success": True,
         "data": result
     }
+
+
+@router.get("/lucky-days/categories")
+async def get_lucky_day_categories():
+    """
+    取得所有吉日查詢類別
+
+    返回事業、學業、居住、婚姻、醫療、旅行等類別及其項目。
+    """
+    categories = sukuyodo_service.get_all_lucky_day_categories()
+    return {
+        "success": True,
+        "categories": categories
+    }
+
+
+@router.get("/lucky-days/{date_str}")
+def get_lucky_days(
+    date_str: str,
+    category: str,
+    action: str,
+    session: Session = Depends(get_session)
+):
+    """
+    查詢特定類別的吉日
+
+    Args:
+        date_str: 西曆生日，格式 YYYY-MM-DD
+        category: 類別（career/study/housing/marriage/medical/travel）
+        action: 具體項目（如 interview/resign/exam 等）
+    """
+    try:
+        birth_date = date.fromisoformat(date_str)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="日期格式錯誤，請使用 YYYY-MM-DD"
+        )
+
+    # 驗證日期範圍
+    today = date.today()
+    if birth_date > today:
+        raise HTTPException(
+            status_code=400,
+            detail="生日不可為未來日期"
+        )
+
+    if birth_date.year < 1900:
+        raise HTTPException(
+            status_code=400,
+            detail="僅支援 1900 年後的日期"
+        )
+
+    try:
+        result = sukuyodo_service.get_lucky_days(birth_date, category, action)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+
+    # 記錄使用統計
+    stats_service.log_usage(session, Features.SUKUYODO_LOOKUP)
+
+    return {
+        "success": True,
+        "data": result
+    }
