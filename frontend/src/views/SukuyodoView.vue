@@ -788,13 +788,14 @@ const getFortuneLevel = (score: number) => {
 
 // 當日宿關係類型的樣式類別
 const getMansionRelationClass = (relationType: string) => {
+  // 使用羅馬拼音 key，與 API 回傳的 mansion_relation.type 一致
   const classMap: Record<string, string> = {
-    '榮親': 'relation-excellent',
-    '業胎': 'relation-good',
-    '命': 'relation-fair',
-    '友衰': 'relation-neutral',
-    '危成': 'relation-caution',
-    '安壞': 'relation-warning'
+    'eishin': 'relation-excellent',  // 榮親 - 大吉
+    'gyotai': 'relation-good',       // 業胎 - 吉
+    'mei': 'relation-fair',          // 命 - 中吉
+    'yusui': 'relation-neutral',     // 友衰 - 中吉偏低
+    'kisei': 'relation-caution',     // 危成 - 小吉
+    'ankai': 'relation-warning'      // 安壞 - 凶
   }
   return classMap[relationType] || 'relation-neutral'
 }

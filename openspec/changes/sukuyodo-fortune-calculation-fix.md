@@ -107,5 +107,6 @@ const getFortuneLevel = (score: number) => {
 - [x] 根據三九秘法關係決定基礎分數
 - [x] 將七曜元素改為次要微調因素
 - [x] 前端新增當日宿關係顯示
+- [x] 修復 RELATION_SCORE_RANGES key 不匹配問題（羅馬拼音）
 - [ ] 更新 `calculate_weekly_fortune()` 同步邏輯（可選）
 - [ ] 測試各種關係類型的分數分佈
