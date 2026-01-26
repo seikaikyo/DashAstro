@@ -285,6 +285,9 @@ const metadata = ref<Metadata | null>(null)
 // 顯示公式說明
 const showFormula = ref(false)
 
+// 顯示歷史典故
+const showHistory = ref(false)
+
 // 相性配對查詢
 const compatFinder = ref<CompatibilityFinderResult | null>(null)
 const finderLoading = ref(false)
@@ -1483,9 +1486,117 @@ const toggleLunarDate = (ld: LunarDate) => {
         </div>
       </section>
 
-      <!-- 介紹區塊 -->
-      <section class="intro-section">
-        <h2>關於<ruby>宿曜道<rp>(</rp><rt>しゅくようどう</rt><rp>)</rp></ruby></h2>
+      <!-- 關於宿曜道 - 詳細歷史介紹 -->
+      <section class="history-section card">
+        <button class="history-toggle" @click="showHistory = !showHistory">
+          <h2>關於<ruby>宿曜道<rp>(</rp><rt>しゅくようどう</rt><rp>)</rp></ruby></h2>
+          <sl-icon :name="showHistory ? 'chevron-up' : 'chevron-down'"></sl-icon>
+        </button>
+
+        <div v-if="showHistory" class="history-content">
+          <!-- 起源 -->
+          <div class="history-block">
+            <h3>起源</h3>
+            <p>
+              宿曜道源自古印度的「<ruby>納沙特拉<rp>(</rp><rt>Nakshatra</rt><rp>)</rp></ruby>」占星術，
+              是印度最古老的天文體系之一。此法將黃道周天分為 27 個區域，稱為「<ruby>二十七宿<rp>(</rp><rt>にじゅうしちしゅく</rt><rp>)</rp></ruby>」，
+              每個星宿對應約 13 度又 20 分的天區。
+            </p>
+            <p>
+              這套體系經由絲路傳入中國，於唐代與中國本土天文學融合，成為兼具印度和中華特色的占星系統。
+              《宿曜經》記載的推算方法，至今仍是研究東亞占星術的重要文獻。
+            </p>
+          </div>
+
+          <!-- 傳入日本 -->
+          <div class="history-block">
+            <h3>傳入日本</h3>
+            <p>
+              <ruby>延曆<rp>(</rp><rt>えんりゃく</rt><rp>)</rp></ruby>23 年（西元 804 年），
+              <ruby>空海<rp>(</rp><rt>くうかい</rt><rp>)</rp></ruby>大師入唐求法，於長安
+              <ruby>青龍寺<rp>(</rp><rt>せいりゅうじ</rt><rp>)</rp></ruby>師從
+              <ruby>惠果<rp>(</rp><rt>けいか</rt><rp>)</rp></ruby>阿闍梨，習得<ruby>真言密教<rp>(</rp><rt>しんごんみっきょう</rt><rp>)</rp></ruby>。
+            </p>
+            <p>
+              空海歸國時攜回大量經典，其中包括《<ruby>宿曜經<rp>(</rp><rt>すくようきょう</rt><rp>)</rp></ruby>》
+              （全名《文殊師利菩薩及諸仙所說吉凶時日善惡宿曜經》）。
+              這部經典系統地闡述了二十七宿的性質、吉凶判斷、以及人際關係推算的方法，
+              成為日本宿曜道的根本經典。
+            </p>
+          </div>
+
+          <!-- 三九秘法 -->
+          <div class="history-block">
+            <h3><ruby>三九秘法<rp>(</rp><rt>さんくひほう</rt><rp>)</rp></ruby></h3>
+            <p>
+              宿曜道以「三九秘法」計算人際關係。此法根據兩人本命宿在二十七宿輪盤上的距離，
+              判定六種基本關係類型：
+            </p>
+            <div class="relation-intro-grid">
+              <div class="relation-intro-item">
+                <ruby class="rel-title">命<rp>(</rp><rt>めい</rt><rp>)</rp></ruby>
+                <span class="rel-brief">距離 0 宿，如同鏡子般的存在，彼此理解但優缺點皆被放大</span>
+              </div>
+              <div class="relation-intro-item">
+                <ruby class="rel-title">業胎<rp>(</rp><rt>ぎょうたい</rt><rp>)</rp></ruby>
+                <span class="rel-brief">距離 9 或 18 宿，前世因緣深厚，常有似曾相識之感</span>
+              </div>
+              <div class="relation-intro-item">
+                <ruby class="rel-title">栄親<rp>(</rp><rt>えいしん</rt><rp>)</rp></ruby>
+                <span class="rel-brief">互相提攜成長的良緣，傳統上被視為最佳結合</span>
+              </div>
+              <div class="relation-intro-item">
+                <ruby class="rel-title">友衰<rp>(</rp><rt>ゆうすい</rt><rp>)</rp></ruby>
+                <span class="rel-brief">相處舒適自在，但需注意不要一起停滯不前</span>
+              </div>
+              <div class="relation-intro-item">
+                <ruby class="rel-title">安壊<rp>(</rp><rt>あんかい</rt><rp>)</rp></ruby>
+                <span class="rel-brief">一方安定一方破壞，權力不對等需謹慎經營</span>
+              </div>
+              <div class="relation-intro-item">
+                <ruby class="rel-title">危成<rp>(</rp><rt>きせい</rt><rp>)</rp></ruby>
+                <span class="rel-brief">互補的關係，需要磨合但能促進彼此成長</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 現代應用 -->
+          <div class="history-block">
+            <h3>現代應用</h3>
+            <p>
+              時至今日，日本仍廣泛使用宿曜道於婚配、擇日、人事安排等領域。
+              許多企業主管會參考員工的本命宿來組建團隊，以達到人盡其才、互補協作的效果。
+            </p>
+            <p>
+              宿曜道的價值不在於預測命運，而在於提供理解人際關係的框架。
+              透過認識不同的關係類型，我們能更有智慧地經營與他人的互動，
+              在相處中取長補短、互相成長。
+            </p>
+          </div>
+
+          <!-- 七曜說明 -->
+          <div class="history-block">
+            <h3><ruby>七曜<rp>(</rp><rt>しちよう</rt><rp>)</rp></ruby>與運勢</h3>
+            <p>
+              宿曜道同時納入七曜（日、月、火、水、木、金、土）的概念，
+              這正是現代一週七天名稱的由來。每一天由不同的行星主宰，
+              結合個人本命宿的五行屬性，產生獨特的運勢變化。
+            </p>
+            <div class="element-info-grid">
+              <div class="element-info-item"><span class="elem-badge elem-sun">日</span>太陽主宰，能量充沛，利於領導和決策</div>
+              <div class="element-info-item"><span class="elem-badge elem-moon">月</span>月亮主宰，直覺敏銳，適合創意和情感交流</div>
+              <div class="element-info-item"><span class="elem-badge elem-fire">火</span>火星主宰，行動力強，適合挑戰和競爭</div>
+              <div class="element-info-item"><span class="elem-badge elem-water">水</span>水星主宰，思維靈活，適合溝通和學習</div>
+              <div class="element-info-item"><span class="elem-badge elem-wood">木</span>木星主宰，擴展成長，適合規劃和發展</div>
+              <div class="element-info-item"><span class="elem-badge elem-metal">金</span>金星主宰，和諧收斂，適合社交和藝術</div>
+              <div class="element-info-item"><span class="elem-badge elem-earth">土</span>土星主宰，穩定踏實，適合鞏固和累積</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 簡介區塊（折疊狀態的預覽） -->
+      <section v-if="!showHistory" class="intro-section">
         <div class="intro-grid">
           <div class="intro-item">
             <div class="intro-icon">&#9734;</div>
@@ -3257,6 +3368,165 @@ ruby rp {
 
   .day-date {
     min-width: auto;
+  }
+}
+
+/* 宿曜道典故區塊 */
+.history-section {
+  max-width: 700px;
+  margin: 0 auto var(--space-12);
+}
+
+.history-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: inherit;
+}
+
+.history-toggle h2 {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+}
+
+.history-toggle sl-icon {
+  color: var(--text-muted);
+}
+
+.history-content {
+  margin-top: var(--space-6);
+  display: grid;
+  gap: var(--space-6);
+}
+
+.history-block {
+  padding: var(--space-6);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-md);
+}
+
+.history-block h3 {
+  color: var(--stellar-gold);
+  margin-bottom: var(--space-4);
+  font-size: 1rem;
+}
+
+.history-block p {
+  color: var(--text-secondary);
+  line-height: 1.8;
+  font-size: 0.9rem;
+  margin-bottom: var(--space-3);
+}
+
+.history-block p:last-child {
+  margin-bottom: 0;
+}
+
+.history-block ruby rt {
+  font-size: 0.6em;
+}
+
+/* 六種關係簡介 */
+.relation-intro-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.relation-intro-item {
+  padding: var(--space-3);
+  background: var(--cosmos-twilight);
+  border-radius: var(--radius-md);
+}
+
+.rel-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.rel-title strong {
+  color: var(--stellar-gold);
+  font-size: 0.95rem;
+}
+
+.rel-title span {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.rel-brief {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+/* 七曜元素說明 */
+.element-info-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.element-info-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--cosmos-twilight);
+  border-radius: var(--radius-md);
+}
+
+.elem-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.elem-badge.sun { background: #E89B3C; color: #1a1a2e; }
+.elem-badge.moon { background: #C0C0C0; color: #1a1a2e; }
+.elem-badge.fire { background: #E85D4C; color: #fff; }
+.elem-badge.water { background: #2D3436; color: #fff; border: 1px solid var(--border-default); }
+.elem-badge.wood { background: #4A9B5A; color: #fff; }
+.elem-badge.gold { background: #F5F5F5; color: #1a1a2e; }
+.elem-badge.earth { background: #C4A052; color: #1a1a2e; }
+
+.elem-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.elem-info strong {
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.elem-info span {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+/* 響應式調整 */
+@media (max-width: 600px) {
+  .relation-intro-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .element-info-grid {
+    justify-content: center;
   }
 }
 </style>
