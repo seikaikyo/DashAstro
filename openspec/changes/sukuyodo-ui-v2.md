@@ -225,20 +225,22 @@ created: 2026-01-26
 
 | 檔案 | 變更類型 |
 |------|----------|
-| `frontend/src/views/SukuyodoView.vue` | 全面重寫 |
+| `frontend/src/views/SukuyodoViewV2.vue` | 新增（V2 測試版） |
+| `frontend/src/router/index.ts` | 新增路由 `/sukuyodo-v2` |
 
 ## Checklist
 
 - [x] 使用 /ux-designer 定義設計系統
 - [x] 設計桌面版 Layout
 - [x] 設計手機版 Layout
-- [ ] 實作新 UI
-  - [ ] 色彩系統 CSS 變數
-  - [ ] 頂部標題列 + 摘要卡
-  - [ ] 主要 Tab 導航
-  - [ ] 運勢 Tab（日/週/月/年）
-  - [ ] 配對 Tab（尋找配對/相性診斷/我的配對）
-  - [ ] 吉日 Tab（側邊欄式）
-  - [ ] 知識 Tab（6 個子 Tab）
-- [ ] 測試 RWD 表現
+- [x] 實作新 UI
+  - [x] 色彩系統 CSS 變數（深褐 + 琥珀金）
+  - [x] 頂部標題列 + 摘要卡
+  - [x] 主要 Tab 導航（運勢/配對/吉日/知識）
+  - [x] 運勢 Tab（日/週/月/年）
+  - [x] 配對 Tab（尋找配對/相性診斷/我的配對）
+  - [x] 吉日 Tab（側邊欄式）
+  - [x] 知識 Tab（6 個子 Tab）
+- [x] 測試 RWD 表現（基本測試通過）
 - [ ] 測試無障礙
+- [ ] 確認無問題後替換正式版
