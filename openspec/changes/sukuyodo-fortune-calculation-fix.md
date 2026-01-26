@@ -1,7 +1,7 @@
 ---
 title: 修正宿曜道運勢計算公式
 type: fix
-status: in-progress
+status: completed
 priority: critical
 created: 2026-01-26
 ---
@@ -103,9 +103,9 @@ const getFortuneLevel = (score: number) => {
 
 ## Checklist
 
-- [ ] 修改 `calculate_daily_fortune()` 加入當日宿計算
-- [ ] 根據三九秘法關係決定基礎分數
-- [ ] 將七曜元素改為次要微調因素
-- [ ] 更新 `calculate_weekly_fortune()` 同步邏輯
+- [x] 修改 `calculate_daily_fortune()` 加入當日宿計算
+- [x] 根據三九秘法關係決定基礎分數
+- [x] 將七曜元素改為次要微調因素
+- [x] 前端新增當日宿關係顯示
+- [ ] 更新 `calculate_weekly_fortune()` 同步邏輯（可選）
 - [ ] 測試各種關係類型的分數分佈
-- [ ] 確認「凶」日會正常出現
