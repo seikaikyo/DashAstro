@@ -25,7 +25,7 @@ const selectedBirthDate = ref(profile.value.birthDate || '')
 const showAddPartner = ref(false)
 const newPartner = ref({
   nickname: '',
-  gender: 'female' as 'male' | 'female' | 'other',
+  gender: 'male' as 'male' | 'female' | 'other',
   zodiacCode: '',
   birthDate: ''
 })
@@ -73,7 +73,7 @@ function handleAddPartner() {
     // 重置表單
     newPartner.value = {
       nickname: '',
-      gender: 'female',
+      gender: 'male',
       zodiacCode: '',
       birthDate: ''
     }
@@ -234,18 +234,21 @@ function getGenderLabel(gender: string) {
               placeholder="暱稱（選填）"
               size="small"
             ></sl-input>
-            <sl-select
-              v-model="newPartner.gender"
-              size="small"
-            >
-              <sl-option
+            <div class="gender-options compact">
+              <label
                 v-for="opt in GENDER_OPTIONS"
                 :key="opt.value"
-                :value="opt.value"
+                :class="['gender-option', { active: newPartner.gender === opt.value }]"
               >
+                <input
+                  type="radio"
+                  :value="opt.value"
+                  v-model="newPartner.gender"
+                  name="new-partner-gender"
+                />
                 {{ opt.label }}
-              </sl-option>
-            </sl-select>
+              </label>
+            </div>
           </div>
 
           <div class="form-row">
@@ -384,6 +387,16 @@ function getGenderLabel(gender: string) {
   border-color: var(--stellar-gold);
   background: var(--astral-deep);
   color: var(--stellar-gold);
+}
+
+.gender-options.compact {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.gender-options.compact .gender-option {
+  padding: var(--space-1) var(--space-3);
+  font-size: 0.85rem;
 }
 
 .zodiac-grid {
