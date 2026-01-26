@@ -311,6 +311,39 @@ function handleWheelSelect(mansion: WheelMansion) {
   }
 }
 
+// 六種關係類型詳解
+interface RelationType {
+  type: string
+  name: string
+  name_jp: string
+  reading: string
+  score: number
+  description: string
+  detailed: string
+  advice: string
+  tips: string[]
+  avoid: string[]
+  good_for: string[]
+}
+const allRelations = ref<RelationType[]>([])
+const showRelations = ref(false)
+const expandedRelation = ref<string | null>(null)
+
+function toggleRelation(type: string) {
+  expandedRelation.value = expandedRelation.value === type ? null : type
+}
+
+// 七曜元素詳解
+interface ElementType {
+  name: string
+  reading: string
+  planet: string
+  traits: string
+  energy: string
+}
+const allElements = ref<ElementType[]>([])
+const showElements = ref(false)
+
 // 相性配對查詢
 const compatFinder = ref<CompatibilityFinderResult | null>(null)
 const finderLoading = ref(false)
@@ -390,6 +423,32 @@ onMounted(async () => {
     }
   } catch (e) {
     console.error('Failed to load mansions')
+  }
+
+  // 載入六種關係類型
+  try {
+    const res = await fetch(`${apiUrl}/api/sukuyodo/relations`)
+    if (res.ok) {
+      const data = await res.json()
+      if (data.relations) {
+        allRelations.value = data.relations
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load relations')
+  }
+
+  // 載入七曜元素
+  try {
+    const res = await fetch(`${apiUrl}/api/sukuyodo/elements`)
+    if (res.ok) {
+      const data = await res.json()
+      if (data.elements) {
+        allElements.value = data.elements
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load elements')
   }
 })
 
@@ -570,6 +629,14 @@ const getFortuneLevel = (score: number) => {
   if (score >= 60) return { text: '中吉', class: 'fair' }
   if (score >= 45) return { text: '小吉', class: 'caution' }
   return { text: '凶', class: 'warning' }
+}
+
+const getScoreClass = (score: number) => {
+  if (score >= 90) return 'excellent'
+  if (score >= 75) return 'good'
+  if (score >= 60) return 'fair'
+  if (score >= 45) return 'caution'
+  return 'warning'
 }
 
 const calculateCompatibility = async () => {
@@ -1563,6 +1630,142 @@ const toggleLunarDate = (ld: LunarDate) => {
             <div v-if="selectedWheelMansion.keywords?.length" class="detail-keywords">
               <span v-for="kw in selectedWheelMansion.keywords" :key="kw" class="keyword-tag">{{ kw }}</span>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 六種關係詳解 -->
+      <section v-if="allRelations.length > 0" class="relations-section card">
+        <button class="relations-toggle" @click="showRelations = !showRelations">
+          <h2><ruby>六種關係<rp>(</rp><rt>ろくしゅかんけい</rt><rp>)</rp></ruby>詳解</h2>
+          <sl-icon :name="showRelations ? 'chevron-up' : 'chevron-down'"></sl-icon>
+        </button>
+
+        <div v-if="showRelations" class="relations-content">
+          <p class="relations-intro">
+            宿曜道以「三九秘法」將人際關係分為六種類型。點擊任一關係可展開詳細說明，
+            包含建議、適合場景以及需要注意的事項。
+          </p>
+
+          <div class="relation-cards">
+            <div
+              v-for="rel in allRelations"
+              :key="rel.type"
+              class="relation-card"
+              :class="{ expanded: expandedRelation === rel.type }"
+            >
+              <button class="relation-header" @click="toggleRelation(rel.type)">
+                <div class="relation-title">
+                  <ruby class="rel-name-large">
+                    {{ rel.name_jp }}<rp>(</rp><rt>{{ rel.reading }}</rt><rp>)</rp>
+                  </ruby>
+                  <span class="rel-score" :class="getScoreClass(rel.score)">{{ rel.score }}分</span>
+                </div>
+                <p class="rel-desc-brief">{{ rel.description }}</p>
+                <sl-icon :name="expandedRelation === rel.type ? 'chevron-up' : 'chevron-down'" class="expand-icon"></sl-icon>
+              </button>
+
+              <div v-if="expandedRelation === rel.type" class="relation-details">
+                <div class="detail-block detailed">
+                  <h4>詳細說明</h4>
+                  <p>{{ rel.detailed }}</p>
+                </div>
+
+                <div class="detail-block advice">
+                  <h4>經營建議</h4>
+                  <p>{{ rel.advice }}</p>
+                </div>
+
+                <div v-if="rel.tips?.length" class="detail-block tips">
+                  <h4>具體做法</h4>
+                  <ul>
+                    <li v-for="tip in rel.tips" :key="tip">{{ tip }}</li>
+                  </ul>
+                </div>
+
+                <div v-if="rel.avoid?.length" class="detail-block avoid">
+                  <h4>需要避免</h4>
+                  <ul>
+                    <li v-for="item in rel.avoid" :key="item">{{ item }}</li>
+                  </ul>
+                </div>
+
+                <div v-if="rel.good_for?.length" class="detail-block good-for">
+                  <h4>適合場景</h4>
+                  <div class="tags">
+                    <span v-for="item in rel.good_for" :key="item" class="tag">{{ item }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 七曜元素詳解 -->
+      <section v-if="allElements.length > 0" class="elements-section card">
+        <button class="elements-toggle" @click="showElements = !showElements">
+          <h2><ruby>七曜<rp>(</rp><rt>しちよう</rt><rp>)</rp></ruby>元素詳解</h2>
+          <sl-icon :name="showElements ? 'chevron-up' : 'chevron-down'"></sl-icon>
+        </button>
+
+        <div v-if="showElements" class="elements-content">
+          <p class="elements-intro">
+            七曜（日、月、火、水、木、金、土）對應一週七天，每種元素具有獨特的能量特質。
+            了解你的本命宿元素，能更好地把握每日運勢的起伏。
+          </p>
+
+          <div class="element-cards">
+            <div
+              v-for="elem in allElements"
+              :key="elem.name"
+              class="element-card"
+              :style="{ borderColor: elementColors[elem.name] }"
+            >
+              <div class="element-header">
+                <span class="element-name" :style="{ color: elementColors[elem.name] }">
+                  {{ elem.name }}
+                </span>
+                <ruby class="element-reading">
+                  {{ elem.planet }}<rp>(</rp><rt>{{ elem.reading }}</rt><rp>)</rp>
+                </ruby>
+                <span class="element-energy" :class="elem.energy === '陽' ? 'yang' : elem.energy === '陰' ? 'yin' : 'neutral'">
+                  {{ elem.energy }}
+                </span>
+              </div>
+              <p class="element-traits">{{ elem.traits }}</p>
+            </div>
+          </div>
+
+          <div class="element-cycle-section">
+            <h4>五行相生相剋</h4>
+            <div class="cycle-diagram">
+              <div class="cycle-row">
+                <span class="cycle-label">相生：</span>
+                <span class="cycle-flow">
+                  <span :style="{ color: elementColors['木'] }">木</span> →
+                  <span :style="{ color: elementColors['火'] }">火</span> →
+                  <span :style="{ color: elementColors['土'] }">土</span> →
+                  <span :style="{ color: elementColors['金'] }">金</span> →
+                  <span :style="{ color: elementColors['水'] }">水</span> →
+                  <span :style="{ color: elementColors['木'] }">木</span>
+                </span>
+              </div>
+              <div class="cycle-row">
+                <span class="cycle-label">相剋：</span>
+                <span class="cycle-flow">
+                  <span :style="{ color: elementColors['木'] }">木</span> ⊗
+                  <span :style="{ color: elementColors['土'] }">土</span> ⊗
+                  <span :style="{ color: elementColors['水'] }">水</span> ⊗
+                  <span :style="{ color: elementColors['火'] }">火</span> ⊗
+                  <span :style="{ color: elementColors['金'] }">金</span> ⊗
+                  <span :style="{ color: elementColors['木'] }">木</span>
+                </span>
+              </div>
+            </div>
+            <p class="cycle-note">
+              日、月為特殊元素：太陽為至陽之體，能生助火性；月亮為至陰之體，能生助水性。
+            </p>
           </div>
         </div>
       </section>
@@ -3538,6 +3741,347 @@ ruby rp {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+}
+
+/* 六種關係詳解 */
+.relations-section {
+  max-width: 800px;
+  margin: 0 auto var(--space-12);
+}
+
+.relations-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: inherit;
+}
+
+.relations-toggle h2 {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+}
+
+.relations-toggle sl-icon {
+  color: var(--text-muted);
+}
+
+.relations-content {
+  margin-top: var(--space-6);
+}
+
+.relations-intro {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.7;
+  margin-bottom: var(--space-6);
+}
+
+.relation-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.relation-card {
+  background: var(--cosmos-night);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.relation-card.expanded {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.relation-header {
+  width: 100%;
+  padding: var(--space-4);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  position: relative;
+}
+
+.relation-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.rel-name-large {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--stellar-gold);
+}
+
+.rel-name-large rt {
+  font-size: 0.5em;
+}
+
+.rel-score {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.rel-score.excellent { background: rgba(74, 155, 90, 0.2); color: #4A9B5A; }
+.rel-score.good { background: rgba(199, 163, 101, 0.2); color: var(--stellar-gold); }
+.rel-score.fair { background: rgba(124, 179, 217, 0.2); color: #7CB3D9; }
+.rel-score.caution { background: rgba(232, 155, 60, 0.2); color: #E89B3C; }
+.rel-score.warning { background: rgba(232, 93, 76, 0.2); color: #E85D4C; }
+
+.rel-desc-brief {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 0;
+  padding-right: var(--space-8);
+}
+
+.expand-icon {
+  position: absolute;
+  right: var(--space-4);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+}
+
+.relation-details {
+  padding: 0 var(--space-4) var(--space-4);
+  display: grid;
+  gap: var(--space-4);
+  border-top: 1px solid var(--border-default);
+  margin-top: var(--space-2);
+  padding-top: var(--space-4);
+}
+
+.relation-details .detail-block {
+  padding: var(--space-3);
+  background: var(--cosmos-twilight);
+  border-radius: var(--radius-md);
+}
+
+.relation-details .detail-block h4 {
+  color: var(--stellar-gold);
+  font-size: 0.9rem;
+  margin-bottom: var(--space-2);
+}
+
+.relation-details .detail-block p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.relation-details .detail-block ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.relation-details .detail-block ul li {
+  padding: var(--space-1) 0;
+  padding-left: var(--space-4);
+  position: relative;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.relation-details .tips ul li::before {
+  content: "○";
+  position: absolute;
+  left: 0;
+  color: #4A9B5A;
+}
+
+.relation-details .avoid ul li::before {
+  content: "✕";
+  position: absolute;
+  left: 0;
+  color: #E85D4C;
+}
+
+.relation-details .tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* 七曜元素詳解 */
+.elements-section {
+  max-width: 800px;
+  margin: 0 auto var(--space-12);
+}
+
+.elements-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: inherit;
+}
+
+.elements-toggle h2 {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+}
+
+.elements-toggle sl-icon {
+  color: var(--text-muted);
+}
+
+.elements-content {
+  margin-top: var(--space-6);
+}
+
+.elements-intro {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.7;
+  margin-bottom: var(--space-6);
+}
+
+.element-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.element-card {
+  padding: var(--space-4);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-md);
+  border-left: 3px solid;
+}
+
+.element-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.element-name {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.element-reading {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.element-reading rt {
+  font-size: 0.6em;
+}
+
+.element-energy {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.element-energy.yang {
+  background: rgba(232, 155, 60, 0.2);
+  color: #E89B3C;
+}
+
+.element-energy.yin {
+  background: rgba(124, 179, 217, 0.2);
+  color: #7CB3D9;
+}
+
+.element-energy.neutral {
+  background: rgba(139, 115, 85, 0.2);
+  color: #8B7355;
+}
+
+.element-traits {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.element-cycle-section {
+  padding: var(--space-4);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-md);
+}
+
+.element-cycle-section h4 {
+  color: var(--stellar-gold);
+  font-size: 0.95rem;
+  margin-bottom: var(--space-3);
+  text-align: center;
+}
+
+.cycle-diagram {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.cycle-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.cycle-label {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  min-width: 50px;
+}
+
+.cycle-flow {
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.cycle-flow span {
+  font-weight: 600;
+}
+
+.cycle-note {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+  line-height: 1.6;
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .element-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .relation-details {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* 宿曜道典故區塊 */
