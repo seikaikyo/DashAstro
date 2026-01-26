@@ -616,13 +616,14 @@ class SukuyodoService:
         return ("neutral", fortune_data["element_relations"]["neutral"]["bonus"])
 
     # 三九秘法：關係類型對應的基礎分數範圍
+    # key 使用羅馬拼音，與 relations 資料一致
     RELATION_SCORE_RANGES = {
-        "榮親": (85, 95),   # 大吉 - 最佳配對日
-        "業胎": (78, 88),   # 吉 - 前世因緣日
-        "命": (72, 82),     # 中吉 - 同宿日
-        "友衰": (60, 72),   # 中吉偏低 - 舒適但易懈怠
-        "危成": (45, 58),   # 小吉 - 需謹慎
-        "安壞": (32, 48),   # 凶 - 權力不對等日
+        "eishin": (85, 95),   # 榮親 - 大吉 - 最佳配對日
+        "gyotai": (78, 88),   # 業胎 - 吉 - 前世因緣日
+        "mei": (72, 82),      # 命 - 中吉 - 同宿日
+        "yusui": (60, 72),    # 友衰 - 中吉偏低 - 舒適但易懈怠
+        "kisei": (45, 58),    # 危成 - 小吉 - 需謹慎
+        "ankai": (32, 48),    # 安壞 - 凶 - 權力不對等日
     }
 
     def calculate_daily_fortune(self, birth_date: date, target_date: date) -> dict:
