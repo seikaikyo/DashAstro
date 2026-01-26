@@ -1,7 +1,7 @@
 ---
 title: 宿曜道頁面全面重設計
 type: refactor
-status: in-progress
+status: completed
 priority: high
 created: 2026-01-26
 ---
@@ -179,5 +179,8 @@ created: 2026-01-26
   - [x] 吉日 Tab（側邊欄版面）
   - [x] 知識 Tab（本命宿/輪盤/關係/元素/公式/歷史）
   - [x] 移除舊 CollapsibleCard 內容
-- [ ] 測試 RWD 表現
-- [ ] CSS 樣式微調
+- [x] 測試 RWD 表現
+  - 桌面版 Tab 導航正常
+  - 所有子 Tab 切換正常
+  - CSS 斷點 @media (max-width: 768px) 已定義
+- [x] CSS 樣式微調（已包含於實作）
