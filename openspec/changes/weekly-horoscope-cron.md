@@ -1,7 +1,7 @@
 ---
 title: 週運勢自動生成 Cron Job
 type: feature
-status: in-progress
+status: completed
 created: 2026-01-26
 ---
 
@@ -60,9 +60,9 @@ Response: { success: true, data: { generated: 12, week_start: "2026-01-27" } }
 
 ## Checklist
 
-- [ ] DashAstro: 新增 `/api/cron/generate-weekly-horoscope` 端點
-- [ ] DashAstro: 實作生成邏輯（查星座 → AI 生成 → 存 DB）
-- [ ] DashTrade: 新增 `generate_dashastro_weekly_horoscope()` 函數
-- [ ] DashTrade: 在 `run_scheduled_tasks()` 加入呼叫
-- [ ] 測試完整流程
-- [ ] 推送並驗證
+- [x] DashAstro: 新增 `/api/cron/generate-weekly-horoscope` 端點
+- [x] DashAstro: 實作生成邏輯（查星座 → AI 生成 → 存 DB）
+- [x] DashTrade: 新增 `generate_dashastro_weekly_horoscope()` 函數
+- [x] DashTrade: 在 `run_scheduled_tasks()` 加入呼叫
+- [x] 測試完整流程
+- [x] 推送並驗證
