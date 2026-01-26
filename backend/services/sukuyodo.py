@@ -1296,90 +1296,91 @@ class SukuyodoService:
     # ==================== 通用吉日查詢 ====================
 
     # 吉日查詢類別定義
+    # 關係類型對照：mei(命), gyotai(業胎), eishin(榮親), yusui(友衰), ankai(安壞), kisei(危成)
     LUCKY_DAY_CATEGORIES = {
         "career": {
             "name": "事業",
             "icon": "briefcase",
             "actions": {
-                "interview": {"name": "求職面試", "favor_relations": ["榮親", "業胎"], "favor_score": 75},
-                "resign": {"name": "離職提出", "favor_relations": ["友衰"], "month_day_range": [1, 5, 25, 31], "favor_score": 65},
-                "opening": {"name": "開業", "favor_relations": ["榮親", "命"], "favor_score": 80},
-                "contract": {"name": "簽約", "favor_relations": ["榮親", "業胎"], "favor_score": 70}
+                "interview": {"name": "求職面試", "favor_relations": ["eishin", "gyotai"], "favor_score": 75},
+                "resign": {"name": "離職提出", "favor_relations": ["yusui"], "month_day_range": [1, 5, 25, 31], "favor_score": 65},
+                "opening": {"name": "開業", "favor_relations": ["eishin", "mei"], "favor_score": 80},
+                "contract": {"name": "簽約", "favor_relations": ["eishin", "gyotai"], "favor_score": 70}
             }
         },
         "study": {
             "name": "學業",
             "icon": "book",
             "actions": {
-                "enrollment": {"name": "入學報到", "favor_relations": ["榮親", "業胎"], "favor_score": 70},
-                "exam": {"name": "考試", "favor_relations": ["榮親", "命"], "favor_weekdays": [1, 3], "favor_score": 75},
-                "tutor": {"name": "補習報名", "favor_relations": ["業胎", "友衰"], "favor_score": 65}
+                "enrollment": {"name": "入學報到", "favor_relations": ["eishin", "gyotai"], "favor_score": 70},
+                "exam": {"name": "考試", "favor_relations": ["eishin", "mei"], "favor_weekdays": [1, 3], "favor_score": 75},
+                "tutor": {"name": "補習報名", "favor_relations": ["gyotai", "yusui"], "favor_score": 65}
             }
         },
         "housing": {
             "name": "居住",
             "icon": "house",
             "actions": {
-                "move_in": {"name": "搬家入宅", "favor_relations": ["榮親", "命"], "favor_score": 75},
-                "renovation": {"name": "裝潢開工", "favor_relations": ["榮親"], "favor_weekdays": [0, 3], "favor_score": 70},
-                "purchase": {"name": "購屋簽約", "favor_relations": ["榮親", "業胎"], "favor_score": 80}
+                "move_in": {"name": "搬家入宅", "favor_relations": ["eishin", "mei"], "favor_score": 75},
+                "renovation": {"name": "裝潢開工", "favor_relations": ["eishin"], "favor_weekdays": [0, 3], "favor_score": 70},
+                "purchase": {"name": "購屋簽約", "favor_relations": ["eishin", "gyotai"], "favor_score": 80}
             }
         },
         "marriage": {
             "name": "婚姻",
             "icon": "heart",
             "actions": {
-                "register": {"name": "結婚登記", "favor_relations": ["榮親", "命"], "favor_score": 85},
-                "wedding": {"name": "婚禮", "favor_relations": ["榮親", "業胎"], "favor_score": 85},
-                "engagement": {"name": "訂婚", "favor_relations": ["榮親", "業胎"], "favor_score": 80}
+                "register": {"name": "結婚登記", "favor_relations": ["eishin", "mei", "gyotai"], "favor_score": 70},
+                "wedding": {"name": "婚禮", "favor_relations": ["eishin", "gyotai", "mei"], "favor_score": 70},
+                "engagement": {"name": "訂婚", "favor_relations": ["eishin", "gyotai"], "favor_score": 70}
             }
         },
         "medical": {
             "name": "醫療",
             "icon": "heart-pulse",
             "actions": {
-                "surgery": {"name": "手術", "favor_relations": ["榮親"], "avoid_relations": ["安壞", "危成"], "favor_score": 80},
-                "checkup": {"name": "健康檢查", "favor_relations": ["友衰", "榮親"], "favor_score": 65},
-                "visit": {"name": "看診", "favor_relations": ["友衰"], "favor_score": 60}
+                "surgery": {"name": "手術", "favor_relations": ["eishin"], "avoid_relations": ["ankai", "kisei"], "favor_score": 80},
+                "checkup": {"name": "健康檢查", "favor_relations": ["yusui", "eishin"], "favor_score": 65},
+                "visit": {"name": "看診", "favor_relations": ["yusui"], "favor_score": 60}
             }
         },
         "travel": {
             "name": "旅行",
             "icon": "airplane",
             "actions": {
-                "abroad": {"name": "出國", "favor_relations": ["榮親", "業胎"], "favor_score": 75},
-                "trip": {"name": "旅遊出發", "favor_relations": ["榮親", "友衰"], "favor_score": 70}
+                "abroad": {"name": "出國", "favor_relations": ["eishin", "gyotai"], "favor_score": 75},
+                "trip": {"name": "旅遊出發", "favor_relations": ["eishin", "yusui"], "favor_score": 70}
             }
         },
         "beauty": {
             "name": "美容",
             "icon": "scissors",
             "actions": {
-                "haircut": {"name": "剪頭髮", "favor_relations": ["榮親", "友衰"], "favor_weekdays": [1, 3, 5], "favor_score": 70},
-                "hair_coloring": {"name": "染髮", "favor_relations": ["榮親"], "favor_score": 65},
-                "perm": {"name": "燙髮", "favor_relations": ["榮親", "業胎"], "favor_score": 65},
-                "nail": {"name": "美甲", "favor_relations": ["榮親", "友衰"], "favor_score": 60},
-                "skincare": {"name": "護膚美容", "favor_relations": ["榮親", "命"], "favor_score": 65},
-                "tattoo": {"name": "紋繡/刺青", "favor_relations": ["榮親"], "avoid_relations": ["安壞"], "favor_score": 70}
+                "haircut": {"name": "剪頭髮", "favor_relations": ["eishin", "yusui"], "favor_weekdays": [1, 3, 5], "favor_score": 70},
+                "hair_coloring": {"name": "染髮", "favor_relations": ["eishin"], "favor_score": 65},
+                "perm": {"name": "燙髮", "favor_relations": ["eishin", "gyotai"], "favor_score": 65},
+                "nail": {"name": "美甲", "favor_relations": ["eishin", "yusui"], "favor_score": 60},
+                "skincare": {"name": "護膚美容", "favor_relations": ["eishin", "mei"], "favor_score": 65},
+                "tattoo": {"name": "紋繡/刺青", "favor_relations": ["eishin"], "avoid_relations": ["ankai"], "favor_score": 70}
             }
         },
         "dating": {
             "name": "感情",
             "icon": "chat-heart",
             "actions": {
-                "first_date": {"name": "第一次約會", "favor_relations": ["榮親", "業胎"], "favor_weekdays": [4, 5], "favor_score": 75},
-                "confession": {"name": "告白", "favor_relations": ["榮親", "命"], "favor_score": 80},
-                "matchmaking": {"name": "相親", "favor_relations": ["榮親", "業胎"], "favor_score": 75},
-                "breakup": {"name": "分手", "favor_relations": ["友衰", "安壞"], "favor_score": 60}
+                "first_date": {"name": "第一次約會", "favor_relations": ["eishin", "gyotai"], "favor_weekdays": [4, 5], "favor_score": 75},
+                "confession": {"name": "告白", "favor_relations": ["eishin", "mei"], "favor_score": 80},
+                "matchmaking": {"name": "相親", "favor_relations": ["eishin", "gyotai"], "favor_score": 75},
+                "breakup": {"name": "分手", "favor_relations": ["yusui", "ankai"], "favor_score": 60}
             }
         },
         "shopping": {
             "name": "購物",
             "icon": "bag",
             "actions": {
-                "clothing": {"name": "買衣服", "favor_relations": ["榮親", "友衰"], "favor_weekdays": [4, 5, 6], "favor_score": 65},
-                "jewelry": {"name": "買首飾", "favor_relations": ["榮親", "命"], "favor_score": 70},
-                "big_purchase": {"name": "大額消費", "favor_relations": ["榮親", "業胎"], "favor_score": 75}
+                "clothing": {"name": "買衣服", "favor_relations": ["eishin", "yusui"], "favor_weekdays": [4, 5, 6], "favor_score": 65},
+                "jewelry": {"name": "買首飾", "favor_relations": ["eishin", "mei"], "favor_score": 70},
+                "big_purchase": {"name": "大額消費", "favor_relations": ["eishin", "gyotai"], "favor_score": 75}
             }
         }
     }
@@ -1426,8 +1427,8 @@ class SukuyodoService:
         fortune_data = self._load_fortune_data()
 
         # 取得項目配置
-        favor_relations = action_config.get("favor_relations", ["榮親"])
-        avoid_relations = action_config.get("avoid_relations", ["安壞", "危成"])
+        favor_relations = action_config.get("favor_relations", ["eishin"])
+        avoid_relations = action_config.get("avoid_relations", ["ankai", "kisei"])
         favor_score = action_config.get("favor_score", 70)
         favor_weekdays = action_config.get("favor_weekdays", None)
         month_day_range = action_config.get("month_day_range", None)
