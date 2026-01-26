@@ -1350,6 +1350,37 @@ class SukuyodoService:
                 "abroad": {"name": "出國", "favor_relations": ["榮親", "業胎"], "favor_score": 75},
                 "trip": {"name": "旅遊出發", "favor_relations": ["榮親", "友衰"], "favor_score": 70}
             }
+        },
+        "beauty": {
+            "name": "美容",
+            "icon": "scissors",
+            "actions": {
+                "haircut": {"name": "剪頭髮", "favor_relations": ["榮親", "友衰"], "favor_weekdays": [1, 3, 5], "favor_score": 70},
+                "hair_coloring": {"name": "染髮", "favor_relations": ["榮親"], "favor_score": 65},
+                "perm": {"name": "燙髮", "favor_relations": ["榮親", "業胎"], "favor_score": 65},
+                "nail": {"name": "美甲", "favor_relations": ["榮親", "友衰"], "favor_score": 60},
+                "skincare": {"name": "護膚美容", "favor_relations": ["榮親", "命"], "favor_score": 65},
+                "tattoo": {"name": "紋繡/刺青", "favor_relations": ["榮親"], "avoid_relations": ["安壞"], "favor_score": 70}
+            }
+        },
+        "dating": {
+            "name": "感情",
+            "icon": "chat-heart",
+            "actions": {
+                "first_date": {"name": "第一次約會", "favor_relations": ["榮親", "業胎"], "favor_weekdays": [4, 5], "favor_score": 75},
+                "confession": {"name": "告白", "favor_relations": ["榮親", "命"], "favor_score": 80},
+                "matchmaking": {"name": "相親", "favor_relations": ["榮親", "業胎"], "favor_score": 75},
+                "breakup": {"name": "分手", "favor_relations": ["友衰", "安壞"], "favor_score": 60}
+            }
+        },
+        "shopping": {
+            "name": "購物",
+            "icon": "bag",
+            "actions": {
+                "clothing": {"name": "買衣服", "favor_relations": ["榮親", "友衰"], "favor_weekdays": [4, 5, 6], "favor_score": 65},
+                "jewelry": {"name": "買首飾", "favor_relations": ["榮親", "命"], "favor_score": 70},
+                "big_purchase": {"name": "大額消費", "favor_relations": ["榮親", "業胎"], "favor_score": 75}
+            }
         }
     }
 
@@ -1365,7 +1396,7 @@ class SukuyodoService:
 
         Args:
             birth_date: 西曆生日
-            category: 類別（career/study/housing/marriage/medical/travel）
+            category: 類別（career/study/housing/marriage/medical/travel/beauty/dating/shopping）
             action: 具體項目
             days_ahead: 查詢未來幾天（預設 30）
 

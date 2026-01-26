@@ -539,7 +539,7 @@ def get_lucky_days(
 
     Args:
         date_str: 西曆生日，格式 YYYY-MM-DD
-        category: 類別（career/study/housing/marriage/medical/travel）
+        category: 類別（career/study/housing/marriage/medical/travel/beauty/dating/shopping）
         action: 具體項目（如 interview/resign/exam 等）
     """
     try:
