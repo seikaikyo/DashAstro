@@ -1293,6 +1293,278 @@ class SukuyodoService:
             "general_advice": self._get_career_advice(user_element)
         }
 
+    # ==================== 通用吉日查詢 ====================
+
+    # 吉日查詢類別定義
+    LUCKY_DAY_CATEGORIES = {
+        "career": {
+            "name": "事業",
+            "icon": "briefcase",
+            "actions": {
+                "interview": {"name": "求職面試", "favor_relations": ["榮親", "業胎"], "favor_score": 75},
+                "resign": {"name": "離職提出", "favor_relations": ["友衰"], "month_day_range": [1, 5, 25, 31], "favor_score": 65},
+                "opening": {"name": "開業", "favor_relations": ["榮親", "命"], "favor_score": 80},
+                "contract": {"name": "簽約", "favor_relations": ["榮親", "業胎"], "favor_score": 70}
+            }
+        },
+        "study": {
+            "name": "學業",
+            "icon": "book",
+            "actions": {
+                "enrollment": {"name": "入學報到", "favor_relations": ["榮親", "業胎"], "favor_score": 70},
+                "exam": {"name": "考試", "favor_relations": ["榮親", "命"], "favor_weekdays": [1, 3], "favor_score": 75},
+                "tutor": {"name": "補習報名", "favor_relations": ["業胎", "友衰"], "favor_score": 65}
+            }
+        },
+        "housing": {
+            "name": "居住",
+            "icon": "house",
+            "actions": {
+                "move_in": {"name": "搬家入宅", "favor_relations": ["榮親", "命"], "favor_score": 75},
+                "renovation": {"name": "裝潢開工", "favor_relations": ["榮親"], "favor_weekdays": [0, 3], "favor_score": 70},
+                "purchase": {"name": "購屋簽約", "favor_relations": ["榮親", "業胎"], "favor_score": 80}
+            }
+        },
+        "marriage": {
+            "name": "婚姻",
+            "icon": "heart",
+            "actions": {
+                "register": {"name": "結婚登記", "favor_relations": ["榮親", "命"], "favor_score": 85},
+                "wedding": {"name": "婚禮", "favor_relations": ["榮親", "業胎"], "favor_score": 85},
+                "engagement": {"name": "訂婚", "favor_relations": ["榮親", "業胎"], "favor_score": 80}
+            }
+        },
+        "medical": {
+            "name": "醫療",
+            "icon": "heart-pulse",
+            "actions": {
+                "surgery": {"name": "手術", "favor_relations": ["榮親"], "avoid_relations": ["安壞", "危成"], "favor_score": 80},
+                "checkup": {"name": "健康檢查", "favor_relations": ["友衰", "榮親"], "favor_score": 65},
+                "visit": {"name": "看診", "favor_relations": ["友衰"], "favor_score": 60}
+            }
+        },
+        "travel": {
+            "name": "旅行",
+            "icon": "airplane",
+            "actions": {
+                "abroad": {"name": "出國", "favor_relations": ["榮親", "業胎"], "favor_score": 75},
+                "trip": {"name": "旅遊出發", "favor_relations": ["榮親", "友衰"], "favor_score": 70}
+            }
+        }
+    }
+
+    def get_lucky_days(
+        self,
+        birth_date: date,
+        category: str,
+        action: str,
+        days_ahead: int = 30
+    ) -> dict:
+        """
+        通用吉日查詢
+
+        Args:
+            birth_date: 西曆生日
+            category: 類別（career/study/housing/marriage/medical/travel）
+            action: 具體項目
+            days_ahead: 查詢未來幾天（預設 30）
+
+        Returns:
+            吉日列表和建議
+        """
+        from datetime import timedelta
+
+        # 驗證類別和項目
+        if category not in self.LUCKY_DAY_CATEGORIES:
+            raise ValueError(f"無效的類別: {category}")
+
+        cat_config = self.LUCKY_DAY_CATEGORIES[category]
+        if action not in cat_config["actions"]:
+            raise ValueError(f"無效的項目: {action}")
+
+        action_config = cat_config["actions"][action]
+
+        mansion = self.get_mansion(birth_date)
+        user_element = mansion["element"]
+        user_index = mansion["index"]
+
+        today = date.today()
+        lucky_days = []
+        avoid_days = []
+
+        fortune_data = self._load_fortune_data()
+
+        # 取得項目配置
+        favor_relations = action_config.get("favor_relations", ["榮親"])
+        avoid_relations = action_config.get("avoid_relations", ["安壞", "危成"])
+        favor_score = action_config.get("favor_score", 70)
+        favor_weekdays = action_config.get("favor_weekdays", None)
+        month_day_range = action_config.get("month_day_range", None)
+
+        for i in range(days_ahead):
+            check_date = today + timedelta(days=i)
+
+            # 計算當日運勢分數
+            daily_fortune = self.calculate_daily_fortune(birth_date, check_date)
+            score = daily_fortune["fortune"]["overall"]
+
+            # 取得當日資訊
+            weekday = check_date.weekday()
+            day_element = fortune_data["weekday_elements"][str(weekday)]["element"]
+            day_name = fortune_data["weekday_elements"][str(weekday)]["name"]
+
+            # 計算當日宿
+            lunar_year, lunar_month, lunar_day, _ = self.solar_to_lunar(check_date)
+            day_mansion_index = self.get_mansion_index(lunar_month, lunar_day)
+
+            # 計算與本命宿的關係
+            relation = self.get_relation_type(user_index, day_mansion_index)
+            relation_type = relation["type"]
+
+            # 判斷是否吉日
+            is_lucky = False
+            lucky_reason = ""
+
+            # 檢查避開的關係
+            if relation_type in avoid_relations:
+                if len(avoid_days) < 5:
+                    avoid_days.append({
+                        "date": check_date.isoformat(),
+                        "weekday": day_name,
+                        "score": score,
+                        "reason": f"{relation['name']}日，不宜{action_config['name']}"
+                    })
+                continue
+
+            # 檢查運勢過低
+            if score < 50:
+                if len(avoid_days) < 5:
+                    avoid_days.append({
+                        "date": check_date.isoformat(),
+                        "weekday": day_name,
+                        "score": score,
+                        "reason": "運勢低迷，建議避開"
+                    })
+                continue
+
+            # 檢查特定月日範圍（如離職適合月初月底）
+            if month_day_range:
+                day_of_month = check_date.day
+                in_range = any(
+                    day_of_month <= month_day_range[1] or day_of_month >= month_day_range[2]
+                    for _ in [1]
+                )
+                if not in_range:
+                    continue
+
+            # 判斷吉日條件
+            if relation_type in favor_relations:
+                is_lucky = True
+                lucky_reason = f"{relation['name']}日，{self._get_relation_benefit(relation_type, action)}"
+            elif day_element == user_element and score >= favor_score:
+                is_lucky = True
+                lucky_reason = f"{day_name}（{day_element}）同元素，能量充沛"
+            elif self._is_generating(day_element, user_element) and score >= favor_score:
+                is_lucky = True
+                lucky_reason = f"{day_name}，元素相生，運勢順利"
+            elif score >= favor_score + 5:
+                # 特定星期加分
+                if favor_weekdays and weekday in favor_weekdays:
+                    is_lucky = True
+                    lucky_reason = f"運勢佳（{score}分），{day_name}適合{action_config['name']}"
+                elif score >= favor_score + 10:
+                    is_lucky = True
+                    lucky_reason = f"運勢極佳（{score}分）"
+
+            if is_lucky and len(lucky_days) < 8:
+                # 計算評級
+                rating = "大吉" if score >= 85 else "吉" if score >= 70 else "中吉"
+                lucky_days.append({
+                    "date": check_date.isoformat(),
+                    "weekday": day_name,
+                    "score": score,
+                    "rating": rating,
+                    "reason": lucky_reason
+                })
+
+        return {
+            "category": category,
+            "category_name": cat_config["name"],
+            "action": action,
+            "action_name": action_config["name"],
+            "your_mansion": {
+                "name_jp": mansion["name_jp"],
+                "reading": mansion["reading"],
+                "element": user_element
+            },
+            "lucky_days": lucky_days,
+            "avoid_days": avoid_days,
+            "advice": self._get_action_advice(category, action, user_element)
+        }
+
+    def get_all_lucky_day_categories(self) -> list:
+        """取得所有吉日查詢類別"""
+        return [
+            {
+                "key": key,
+                "name": cat["name"],
+                "icon": cat["icon"],
+                "actions": [
+                    {"key": act_key, "name": act["name"]}
+                    for act_key, act in cat["actions"].items()
+                ]
+            }
+            for key, cat in self.LUCKY_DAY_CATEGORIES.items()
+        ]
+
+    def _get_relation_benefit(self, relation_type: str, action: str) -> str:
+        """取得關係類型對特定行動的好處描述"""
+        benefits = {
+            "榮親": "貴人相助，順利圓滿",
+            "業胎": "前世因緣，水到渠成",
+            "命": "能量共鳴，心想事成",
+            "友衰": "平穩順遂，適合進行",
+            "危成": "需謹慎行事",
+            "安壞": "建議避開此日"
+        }
+        return benefits.get(relation_type, "")
+
+    def _get_action_advice(self, category: str, action: str, element: str) -> str:
+        """取得特定行動的建議"""
+        advice_templates = {
+            "career": {
+                "interview": f"{element}性本命宿者，面試時宜展現穩重與專業，選擇上午時段精神較佳。",
+                "resign": f"{element}性本命宿者，離職時保持和善態度，為未來留下良好印象。",
+                "opening": f"{element}性本命宿者，開業宜選擇與本命宿相合之方位，增添運勢。",
+                "contract": f"{element}性本命宿者，簽約前仔細審閱條款，選擇運勢高峰時段。"
+            },
+            "study": {
+                "enrollment": f"{element}性本命宿者，入學報到時保持正向心態，有助於學業順遂。",
+                "exam": f"{element}性本命宿者，考試當日宜早起準備，穿戴與本命元素相合的顏色。",
+                "tutor": f"{element}性本命宿者，選擇補習時考量與老師的相性，有助學習效果。"
+            },
+            "housing": {
+                "move_in": f"{element}性本命宿者，搬家入宅宜選擇上午時段，並注意方位吉凶。",
+                "renovation": f"{element}性本命宿者，裝潢開工前可先淨宅，增添正能量。",
+                "purchase": f"{element}性本命宿者，購屋時多考量房屋座向與本命宿的相合度。"
+            },
+            "marriage": {
+                "register": f"{element}性本命宿者，登記時心懷感恩，為婚姻奠定良好基礎。",
+                "wedding": f"{element}性本命宿者，婚禮當日保持愉悅心情，吉祥圓滿。",
+                "engagement": f"{element}性本命宿者，訂婚時誠意為重，雙方家庭和睦為佳。"
+            },
+            "medical": {
+                "surgery": f"{element}性本命宿者，手術前保持平靜心態，信任醫療團隊。",
+                "checkup": f"{element}性本命宿者，定期健康檢查有助於預防保健。",
+                "visit": f"{element}性本命宿者，看診時詳述症狀，配合醫囑調養。"
+            },
+            "travel": {
+                "abroad": f"{element}性本命宿者，出國前確認行程安排，注意旅途安全。",
+                "trip": f"{element}性本命宿者，旅遊時放鬆心情，享受當下美好時光。"
+            }
+        }
+        return advice_templates.get(category, {}).get(action, "選擇運勢良好的日子進行，有助於事半功倍。")
+
     def _is_generating(self, elem1: str, elem2: str) -> bool:
         """檢查是否為相生關係"""
         GENERATING_PAIRS = [

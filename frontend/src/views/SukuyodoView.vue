@@ -359,34 +359,43 @@ const monthlyFortune = ref<MonthlyFortune | null>(null)
 const yearlyFortune = ref<YearlyFortune | null>(null)
 const fortuneLoading = ref(false)
 
-// 求職離職指引
-interface CareerCategory {
+// 吉日查詢
+interface LuckyDayAction {
+  key: string
   name: string
-  jobs: string[]
+}
+interface LuckyDayCategory {
+  key: string
+  name: string
+  icon: string
+  actions: LuckyDayAction[]
 }
 interface LuckyDay {
   date: string
   weekday: string
   score: number
+  rating?: string
   reason: string
 }
-interface CareerGuidance {
+interface LuckyDayResult {
+  category: string
+  category_name: string
+  action: string
+  action_name: string
   your_mansion: {
     name_jp: string
     reading: string
     element: string
   }
-  suitable_careers: CareerCategory[]
-  career_traits: string
-  lucky_days: {
-    job_seeking: LuckyDay[]
-    resignation: LuckyDay[]
-  }
+  lucky_days: LuckyDay[]
   avoid_days: LuckyDay[]
-  general_advice: string
+  advice: string
 }
-const careerGuidance = ref<CareerGuidance | null>(null)
-const careerLoading = ref(false)
+const luckyDayCategories = ref<LuckyDayCategory[]>([])
+const selectedLuckyCategory = ref<string | null>(null)
+const selectedLuckyAction = ref<string | null>(null)
+const luckyDayResult = ref<LuckyDayResult | null>(null)
+const luckyDayLoading = ref(false)
 
 // 收藏對象配對
 interface PartnerCompatibility {
@@ -493,6 +502,9 @@ onMounted(async () => {
   } catch (e) {
     console.error('Failed to load elements')
   }
+
+  // 載入吉日查詢類別
+  fetchLuckyDayCategories()
 })
 
 const lookupMansion = async () => {
@@ -507,7 +519,7 @@ const lookupMansion = async () => {
   weeklyFortune.value = null
   monthlyFortune.value = null
   yearlyFortune.value = null
-  careerGuidance.value = null
+  luckyDayResult.value = null
 
   try {
     const res = await fetch(`${apiUrl}/api/sukuyodo/mansion/${birthDate.value}`)
@@ -643,28 +655,68 @@ const fetchAllFortunes = async () => {
     fetchDailyFortune(),
     fetchWeeklyFortune(),
     fetchMonthlyFortune(),
-    fetchYearlyFortune(),
-    fetchCareerGuidance()
+    fetchYearlyFortune()
   ])
 }
 
-const fetchCareerGuidance = async () => {
-  if (!birthDate.value) return
-  careerLoading.value = true
+// 載入吉日查詢類別
+const fetchLuckyDayCategories = async () => {
   try {
-    const res = await fetch(`${apiUrl}/api/sukuyodo/career-guidance/${birthDate.value}`)
+    const res = await fetch(`${apiUrl}/api/sukuyodo/lucky-days/categories`)
     if (res.ok) {
       const data = await res.json()
       if (data.success) {
-        careerGuidance.value = data.data
+        luckyDayCategories.value = data.categories
       }
     }
   } catch (e) {
-    console.error('Failed to fetch career guidance')
-  } finally {
-    careerLoading.value = false
+    console.error('Failed to fetch lucky day categories')
   }
 }
+
+// 查詢吉日
+const fetchLuckyDays = async () => {
+  if (!myBirthDate.value || !selectedLuckyCategory.value || !selectedLuckyAction.value) return
+
+  luckyDayLoading.value = true
+  luckyDayResult.value = null
+
+  try {
+    const res = await fetch(
+      `${apiUrl}/api/sukuyodo/lucky-days/${myBirthDate.value}?category=${selectedLuckyCategory.value}&action=${selectedLuckyAction.value}`
+    )
+    if (res.ok) {
+      const data = await res.json()
+      if (data.success) {
+        luckyDayResult.value = data.data
+      }
+    }
+  } catch (e) {
+    console.error('Failed to fetch lucky days')
+  } finally {
+    luckyDayLoading.value = false
+  }
+}
+
+// 選擇類別時重置項目
+const selectLuckyCategory = (categoryKey: string) => {
+  selectedLuckyCategory.value = categoryKey
+  selectedLuckyAction.value = null
+  luckyDayResult.value = null
+}
+
+// 選擇項目後自動查詢
+const selectLuckyAction = (actionKey: string) => {
+  selectedLuckyAction.value = actionKey
+  fetchLuckyDays()
+}
+
+// 取得當前類別的項目列表
+const currentCategoryActions = computed(() => {
+  if (!selectedLuckyCategory.value) return []
+  const cat = luckyDayCategories.value.find(c => c.key === selectedLuckyCategory.value)
+  return cat?.actions || []
+})
 
 // 取得收藏對象配對關係
 const fetchPartnerCompatibilities = async () => {
@@ -1452,98 +1504,117 @@ const toggleLunarDate = (ld: LunarDate) => {
           </div>
         </CollapsibleCard>
 
-        <!-- 求職離職指引卡片 -->
+        <!-- 吉日查詢卡片 -->
         <CollapsibleCard
-          title="求職離職指引"
-          subtitle="適合職業與吉日查詢"
-          icon="briefcase"
-          :badge="careerGuidance ? '已載入' : undefined"
+          title="吉日查詢"
+          subtitle="根據你的本命宿，找出適合的日子"
+          icon="calendar-check"
+          :badge="luckyDayResult ? '已查詢' : undefined"
           :default-open="false"
         >
-          <div class="career-content">
-            <template v-if="careerLoading">
-              <div class="loading-state">
-                <sl-spinner></sl-spinner>
-                <span>載入中...</span>
-              </div>
-            </template>
-
-            <template v-else-if="careerGuidance">
-              <!-- 適合職業類型 -->
-              <div class="career-section">
-                <h4>適合的職業類型</h4>
-                <p class="career-traits">{{ careerGuidance.career_traits }}</p>
-                <div class="career-categories">
-                  <div
-                    v-for="category in careerGuidance.suitable_careers"
-                    :key="category.name"
-                    class="career-category"
-                  >
-                    <span class="category-name">{{ category.name }}</span>
-                    <div class="job-list">
-                      <span v-for="job in category.jobs" :key="job" class="job-tag">{{ job }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 職涯建議 -->
-              <div class="career-advice">
-                <p>{{ careerGuidance.general_advice }}</p>
-              </div>
-
-              <!-- 求職吉日 -->
-              <div class="lucky-days-section">
-                <h4>近 30 天求職吉日</h4>
-                <div v-if="careerGuidance.lucky_days.job_seeking.length" class="lucky-days-list">
-                  <div
-                    v-for="day in careerGuidance.lucky_days.job_seeking"
-                    :key="day.date"
-                    class="lucky-day-item seeking"
-                  >
-                    <span class="day-date">{{ formatDate(day.date) }} ({{ day.weekday }})</span>
-                    <span class="day-score">{{ day.score }}分</span>
-                    <span class="day-reason">{{ day.reason }}</span>
-                  </div>
-                </div>
-                <p v-else class="no-data">暫無特別吉日</p>
-              </div>
-
-              <!-- 離職吉日 -->
-              <div class="lucky-days-section">
-                <h4>近 30 天離職吉日</h4>
-                <div v-if="careerGuidance.lucky_days.resignation.length" class="lucky-days-list">
-                  <div
-                    v-for="day in careerGuidance.lucky_days.resignation"
-                    :key="day.date"
-                    class="lucky-day-item resignation"
-                  >
-                    <span class="day-date">{{ formatDate(day.date) }} ({{ day.weekday }})</span>
-                    <span class="day-score">{{ day.score }}分</span>
-                    <span class="day-reason">{{ day.reason }}</span>
-                  </div>
-                </div>
-                <p v-else class="no-data">暫無適合日期</p>
-              </div>
-
-              <!-- 需避開的日子 -->
-              <div v-if="careerGuidance.avoid_days.length" class="avoid-days-section">
-                <h4>需避開的日子</h4>
-                <div class="avoid-days-list">
-                  <div
-                    v-for="day in careerGuidance.avoid_days"
-                    :key="day.date"
-                    class="avoid-day-item"
-                  >
-                    <span class="day-date">{{ formatDate(day.date) }} ({{ day.weekday }})</span>
-                    <span class="day-reason">{{ day.reason }}</span>
-                  </div>
-                </div>
-              </div>
+          <div class="lucky-query-content">
+            <!-- 未設定生日提示 -->
+            <template v-if="!myBirthDate">
+              <p class="no-data">請先到「個人資料」設定你的生日</p>
             </template>
 
             <template v-else>
-              <p class="no-data">請先查詢本命宿以取得求職離職指引</p>
+              <!-- 類別選擇 -->
+              <div class="lucky-category-section">
+                <h4>選擇查詢類型</h4>
+                <div class="category-buttons">
+                  <button
+                    v-for="cat in luckyDayCategories"
+                    :key="cat.key"
+                    class="category-btn"
+                    :class="{ active: selectedLuckyCategory === cat.key }"
+                    @click="selectLuckyCategory(cat.key)"
+                  >
+                    <sl-icon :name="cat.icon"></sl-icon>
+                    <span>{{ cat.name }}</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- 項目選擇 -->
+              <div v-if="selectedLuckyCategory && currentCategoryActions.length" class="lucky-action-section">
+                <h4>選擇具體項目</h4>
+                <div class="action-buttons">
+                  <button
+                    v-for="action in currentCategoryActions"
+                    :key="action.key"
+                    class="action-btn"
+                    :class="{ active: selectedLuckyAction === action.key }"
+                    @click="selectLuckyAction(action.key)"
+                  >
+                    {{ action.name }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- 載入中 -->
+              <div v-if="luckyDayLoading" class="loading-state">
+                <sl-spinner></sl-spinner>
+                <span>查詢中...</span>
+              </div>
+
+              <!-- 查詢結果 -->
+              <template v-else-if="luckyDayResult">
+                <div class="lucky-result">
+                  <!-- 你的本命宿 -->
+                  <div class="your-mansion-info">
+                    <span class="mansion-badge" :style="{ backgroundColor: elementColors[luckyDayResult.your_mansion.element] }">
+                      {{ luckyDayResult.your_mansion.name_jp }}
+                    </span>
+                    <span class="mansion-reading">{{ luckyDayResult.your_mansion.reading }}</span>
+                    <span class="mansion-element">{{ luckyDayResult.your_mansion.element }}性</span>
+                  </div>
+
+                  <!-- 吉日列表 -->
+                  <div v-if="luckyDayResult.lucky_days.length" class="lucky-days-section">
+                    <h4>近 30 天吉日</h4>
+                    <div class="lucky-days-list">
+                      <div
+                        v-for="day in luckyDayResult.lucky_days"
+                        :key="day.date"
+                        class="lucky-day-item"
+                        :class="day.rating === '大吉' ? 'excellent' : 'good'"
+                      >
+                        <div class="day-header">
+                          <span class="day-date">{{ formatDate(day.date) }} ({{ day.weekday }})</span>
+                          <span class="day-rating" :class="day.rating === '大吉' ? 'excellent' : 'good'">{{ day.rating }}</span>
+                        </div>
+                        <span class="day-reason">{{ day.reason }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 應避開的日期 -->
+                  <div v-if="luckyDayResult.avoid_days.length" class="avoid-days-section">
+                    <h4>應避開的日期</h4>
+                    <div class="avoid-days-list">
+                      <div
+                        v-for="day in luckyDayResult.avoid_days"
+                        :key="day.date"
+                        class="avoid-day-item"
+                      >
+                        <span class="day-date">{{ formatDate(day.date) }} ({{ day.weekday }})</span>
+                        <span class="day-reason">{{ day.reason }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 建議 -->
+                  <div v-if="luckyDayResult.advice" class="lucky-advice">
+                    <p>{{ luckyDayResult.advice }}</p>
+                  </div>
+                </div>
+              </template>
+
+              <!-- 未選擇提示 -->
+              <template v-else-if="!selectedLuckyCategory">
+                <p class="hint-text">請選擇查詢類型開始</p>
+              </template>
             </template>
           </div>
         </CollapsibleCard>
@@ -3741,14 +3812,14 @@ ruby rp {
   }
 }
 
-/* 求職離職指引 */
-.career-content {
+/* 吉日查詢 */
+.lucky-query-content {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
 }
 
-.career-content .loading-state {
+.lucky-query-content .loading-state {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3757,7 +3828,8 @@ ruby rp {
   color: var(--text-muted);
 }
 
-.career-section h4,
+.lucky-category-section h4,
+.lucky-action-section h4,
 .lucky-days-section h4,
 .avoid-days-section h4 {
   color: var(--stellar-gold);
@@ -3765,58 +3837,99 @@ ruby rp {
   margin-bottom: var(--space-3);
 }
 
-.career-traits {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  line-height: 1.6;
-  margin-bottom: var(--space-4);
-}
-
-.career-categories {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.career-category {
-  padding: var(--space-4);
-  background: var(--cosmos-night);
-  border-radius: var(--radius-md);
-}
-
-.career-category .category-name {
-  display: block;
-  color: var(--text-primary);
-  font-weight: 500;
-  margin-bottom: var(--space-2);
-}
-
-.job-list {
+/* 類別按鈕 */
+.category-buttons {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
 }
 
-.job-tag {
-  padding: var(--space-1) var(--space-2);
-  background: var(--cosmos-twilight);
-  border-radius: var(--radius-sm);
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
-
-.career-advice {
-  padding: var(--space-4);
+.category-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
   background: var(--cosmos-night);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
-  border-left: 3px solid var(--stellar-gold);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.career-advice p {
+.category-btn:hover {
+  background: var(--cosmos-twilight);
+  border-color: var(--text-muted);
+}
+
+.category-btn.active {
+  background: var(--stellar-gold);
+  border-color: var(--stellar-gold);
+  color: var(--cosmos-night);
+}
+
+.category-btn sl-icon {
+  font-size: 1.1rem;
+}
+
+/* 項目按鈕 */
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.action-btn {
+  padding: var(--space-2) var(--space-4);
+  background: var(--cosmos-night);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
   color: var(--text-secondary);
-  line-height: 1.7;
+  cursor: pointer;
+  transition: all 0.2s;
   font-size: 0.9rem;
 }
 
+.action-btn:hover {
+  background: var(--cosmos-twilight);
+  border-color: var(--text-muted);
+}
+
+.action-btn.active {
+  background: var(--nebula-purple);
+  border-color: var(--nebula-purple);
+  color: var(--text-primary);
+}
+
+/* 本命宿資訊 */
+.your-mansion-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-md);
+}
+
+.your-mansion-info .mansion-badge {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  color: white;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.your-mansion-info .mansion-reading {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.your-mansion-info .mansion-element {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+/* 吉日/避日列表 */
 .lucky-days-list,
 .avoid-days-list {
   display: flex;
@@ -3824,7 +3937,23 @@ ruby rp {
   gap: var(--space-2);
 }
 
-.lucky-day-item,
+.lucky-day-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-md);
+}
+
+.lucky-day-item.excellent {
+  border-left: 3px solid #4A9B5A;
+}
+
+.lucky-day-item.good {
+  border-left: 3px solid var(--stellar-gold);
+}
+
 .avoid-day-item {
   display: flex;
   flex-wrap: wrap;
@@ -3833,54 +3962,88 @@ ruby rp {
   padding: var(--space-3);
   background: var(--cosmos-night);
   border-radius: var(--radius-md);
-}
-
-.lucky-day-item.seeking {
-  border-left: 3px solid #4A9B5A;
-}
-
-.lucky-day-item.resignation {
-  border-left: 3px solid var(--stellar-gold);
-}
-
-.avoid-day-item {
   border-left: 3px solid #E85D4C;
+}
+
+.day-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
 }
 
 .day-date {
   font-weight: 500;
   color: var(--text-primary);
-  min-width: 120px;
 }
 
-.day-score {
+.day-rating {
   padding: var(--space-1) var(--space-2);
-  background: var(--cosmos-twilight);
   border-radius: var(--radius-sm);
   font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.day-rating.excellent {
+  background: rgba(74, 155, 90, 0.2);
+  color: #4A9B5A;
+}
+
+.day-rating.good {
+  background: rgba(196, 160, 82, 0.2);
   color: var(--stellar-gold);
 }
 
 .day-reason {
   color: var(--text-secondary);
   font-size: 0.85rem;
+  line-height: 1.5;
 }
 
-.career-content .no-data {
+/* 建議區塊 */
+.lucky-advice {
+  padding: var(--space-4);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--stellar-gold);
+}
+
+.lucky-advice p {
+  color: var(--text-secondary);
+  line-height: 1.7;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.lucky-query-content .no-data,
+.lucky-query-content .hint-text {
   color: var(--text-muted);
   text-align: center;
   padding: var(--space-4);
 }
 
 @media (max-width: 768px) {
-  .lucky-day-item,
-  .avoid-day-item {
-    flex-direction: column;
-    align-items: flex-start;
+  .category-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
   }
 
-  .day-date {
-    min-width: auto;
+  .category-btn {
+    flex-direction: column;
+    padding: var(--space-3);
+    text-align: center;
+  }
+
+  .category-btn span {
+    font-size: 0.85rem;
+  }
+
+  .action-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .action-btn {
+    text-align: center;
   }
 }
 
