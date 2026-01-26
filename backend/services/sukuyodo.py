@@ -1330,9 +1330,9 @@ class SukuyodoService:
             "name": "婚姻",
             "icon": "heart",
             "actions": {
-                "register": {"name": "結婚登記", "favor_relations": ["eishin", "mei", "gyotai"], "favor_score": 70},
-                "wedding": {"name": "婚禮", "favor_relations": ["eishin", "gyotai", "mei"], "favor_score": 70},
-                "engagement": {"name": "訂婚", "favor_relations": ["eishin", "gyotai"], "favor_score": 70}
+                "register": {"name": "結婚登記", "favor_relations": ["eishin", "mei", "gyotai", "yusui"], "favor_score": 70},
+                "wedding": {"name": "婚禮", "favor_relations": ["eishin", "gyotai", "mei", "yusui"], "favor_score": 70},
+                "engagement": {"name": "訂婚", "favor_relations": ["eishin", "gyotai", "yusui"], "favor_score": 70}
             }
         },
         "medical": {
