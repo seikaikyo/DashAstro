@@ -615,9 +615,21 @@ class SukuyodoService:
 
         return ("neutral", fortune_data["element_relations"]["neutral"]["bonus"])
 
+    # 三九秘法：關係類型對應的基礎分數範圍
+    RELATION_SCORE_RANGES = {
+        "榮親": (85, 95),   # 大吉 - 最佳配對日
+        "業胎": (78, 88),   # 吉 - 前世因緣日
+        "命": (72, 82),     # 中吉 - 同宿日
+        "友衰": (60, 72),   # 中吉偏低 - 舒適但易懈怠
+        "危成": (45, 58),   # 小吉 - 需謹慎
+        "安壞": (32, 48),   # 凶 - 權力不對等日
+    }
+
     def calculate_daily_fortune(self, birth_date: date, target_date: date) -> dict:
         """
         計算每日運勢
+
+        使用三九秘法：根據「本命宿」與「當日宿」的關係決定運勢基調
 
         Args:
             birth_date: 出生日期
@@ -631,43 +643,67 @@ class SukuyodoService:
         fortune_data = self._load_fortune_data()
         mansion = self.get_mansion(birth_date)
         user_element = mansion["element"]
+        user_index = mansion["index"]
 
-        # 取得當日七曜
-        weekday = target_date.weekday()  # 0=Monday
-        # 轉換為日本七曜（0=Sunday）
+        # === 核心修正：計算「當日宿」===
+        # 根據目標日期的農曆計算當天的宿位
+        lunar_y, lunar_m, lunar_d, _ = self.solar_to_lunar(target_date)
+        day_mansion_index = self.get_mansion_index(lunar_m, lunar_d)
+        day_mansion = self.mansions_data[day_mansion_index]
+
+        # === 三九秘法：計算本命宿與當日宿的關係 ===
+        mansion_relation = self.get_relation_type(user_index, day_mansion_index)
+        mansion_relation_type = mansion_relation["type"]
+
+        # 根據關係類型決定基礎分數範圍
+        score_range = self.RELATION_SCORE_RANGES.get(
+            mansion_relation_type,
+            (55, 70)  # 預設：未知關係
+        )
+
+        # 設定隨機種子確保同一天同一人結果一致
+        random.seed(f"{birth_date.isoformat()}{target_date.isoformat()}")
+
+        # 基礎分數（根據宿曜關係）
+        base_score = random.randint(score_range[0], score_range[1])
+
+        # === 次要因素：七曜元素微調 ===
+        weekday = target_date.weekday()
         jp_weekday = (weekday + 1) % 7
         day_info = fortune_data["weekday_elements"][str(jp_weekday)]
         day_element = day_info["element"]
 
-        # 計算元素關係
-        relation_type, base_bonus = self._calc_fortune_element_relation(user_element, day_element)
-        relation_desc = fortune_data["element_relations"].get(
-            relation_type,
+        # 元素相性微調（-5 到 +5）
+        element_relation_type, element_bonus = self._calc_fortune_element_relation(
+            user_element, day_element
+        )
+        # 將元素加成縮小為次要因素
+        element_adjustment = element_bonus // 2  # 最多 ±10 變成 ±5
+        element_desc = fortune_data["element_relations"].get(
+            element_relation_type,
             fortune_data["element_relations"]["neutral"]
         )["description"]
 
-        # 基礎分數 (60-80)
-        base_score = 70
+        # 最終總分
+        overall_score = max(30, min(100, base_score + element_adjustment))
 
-        # 根據關係調整
-        overall_score = max(30, min(100, base_score + base_bonus))
-
-        # 計算各項運勢（加入一些變化）
-        random.seed(f"{birth_date.isoformat()}{target_date.isoformat()}")
-
+        # === 計算各項運勢 ===
         def calc_category_score(category: str) -> int:
             cat_data = fortune_data["fortune_categories"][category]
-            cat_bonus = 5 if user_element in cat_data["favorable_elements"] else 0
-            day_bonus = 5 if day_element in cat_data["favorable_elements"] else 0
-            variation = random.randint(-8, 8)
-            return max(30, min(100, base_score + base_bonus + cat_bonus + day_bonus + variation))
+            # 有利元素加成
+            cat_bonus = 3 if user_element in cat_data["favorable_elements"] else 0
+            day_bonus = 2 if day_element in cat_data["favorable_elements"] else 0
+            # 宿曜關係影響各項運勢
+            relation_factor = (score_range[0] + score_range[1]) // 2 - 65  # 相對於中性的偏移
+            variation = random.randint(-6, 6)
+            return max(30, min(100, 65 + relation_factor + cat_bonus + day_bonus + element_adjustment + variation))
 
         career_score = calc_category_score("career")
         love_score = calc_category_score("love")
         health_score = calc_category_score("health")
         wealth_score = calc_category_score("wealth")
 
-        # 選擇建議
+        # === 選擇建議 ===
         if overall_score >= 85:
             advice_list = fortune_data["daily_advice"]["excellent"]
         elif overall_score >= 70:
@@ -681,11 +717,11 @@ class SukuyodoService:
 
         advice = random.choice(advice_list)
 
-        # 幸運物品
+        # === 幸運物品 ===
         lucky = fortune_data["lucky_items"]
-        lucky_direction = lucky["directions"].get(day_element, lucky["directions"]["土"])
-        lucky_color = lucky["colors"].get(day_element, lucky["colors"]["土"])
-        lucky_numbers = lucky["numbers"].get(day_element, [5])
+        lucky_direction = lucky["directions"].get(user_element, lucky["directions"]["土"])
+        lucky_color = lucky["colors"].get(user_element, lucky["colors"]["土"])
+        lucky_numbers = lucky["numbers"].get(user_element, [5])
 
         return {
             "date": target_date.isoformat(),
@@ -695,15 +731,27 @@ class SukuyodoService:
                 "element": day_element,
                 "planet": day_info["planet"]
             },
+            "day_mansion": {
+                "name_jp": day_mansion["name_jp"],
+                "reading": day_mansion["reading"],
+                "element": day_mansion["element"],
+                "index": day_mansion_index
+            },
             "your_mansion": {
                 "name_jp": mansion["name_jp"],
                 "reading": mansion["reading"],
                 "element": user_element,
                 "index": mansion["index"]
             },
+            "mansion_relation": {
+                "type": mansion_relation_type,
+                "name": mansion_relation["name"],
+                "reading": mansion_relation.get("reading", ""),
+                "description": mansion_relation["description"]
+            },
             "element_relation": {
-                "type": relation_type,
-                "description": relation_desc
+                "type": element_relation_type,
+                "description": element_desc
             },
             "fortune": {
                 "overall": overall_score,
