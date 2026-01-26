@@ -174,26 +174,39 @@ class ClaudeAIService:
 - 只回覆 JSON，不要其他文字"""
 
         try:
-            # 使用 Claude 3.5 Sonnet 作為主要模型
+            # 使用 Claude Sonnet 4 作為主要模型
+            print(f"[AI] 開始呼叫 Claude API 生成 {zodiac_name} 週運勢")
             response = self.client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}]
             )
+            print(f"[AI] Claude API 回應成功")
 
             import json
             result_text = response.content[0].text.strip()
+            print(f"[AI] 原始回應: {result_text[:200]}...")
+
             # 移除可能的 markdown 標記
             if result_text.startswith("```"):
-                result_text = result_text.split("\n", 1)[1]
+                # 處理 ```json 或 ``` 開頭
+                first_newline = result_text.find("\n")
+                if first_newline != -1:
+                    result_text = result_text[first_newline + 1:]
             if result_text.endswith("```"):
-                result_text = result_text.rsplit("\n", 1)[0]
+                result_text = result_text[:-3].strip()
 
-            return json.loads(result_text)
+            parsed = json.loads(result_text)
+            print(f"[AI] JSON 解析成功: {zodiac_name}")
+            return parsed
+        except json.JSONDecodeError as je:
+            print(f"[AI] JSON 解析錯誤 ({zodiac_name}): {je}")
+            print(f"[AI] 無法解析的文字: {result_text[:500]}")
+            return None
         except Exception as e:
             import traceback
-            print(f"Claude API 錯誤: {e}")
-            print(f"詳細: {traceback.format_exc()}")
+            print(f"[AI] Claude API 錯誤 ({zodiac_name}): {e}")
+            print(f"[AI] 詳細: {traceback.format_exc()}")
             return None
 
 
