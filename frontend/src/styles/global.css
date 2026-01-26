@@ -131,3 +131,35 @@ a:hover {
     padding: 0 var(--space-3);
   }
 }
+
+/* iOS Shoelace 日期輸入修復 */
+sl-input[type="date"] {
+  /* 確保足夠的觸控區域 (iOS 最小 44px) */
+  min-height: 48px;
+}
+
+sl-input[type="date"]::part(base) {
+  min-height: 48px;
+}
+
+sl-input[type="date"]::part(input) {
+  min-height: 44px;
+  /* iOS Safari 需要這些才能正確觸發日期選擇器 */
+  -webkit-appearance: none;
+  position: relative;
+  z-index: 1;
+}
+
+/* iOS/移動裝置觸控優化 */
+@media (pointer: coarse) {
+  sl-input[type="date"]::part(input) {
+    /* 增加點擊區域 */
+    padding: 12px 16px;
+    font-size: 16px; /* 防止 iOS 自動縮放 */
+  }
+
+  /* 確保日期圖示可點擊 */
+  sl-input[type="date"]::part(suffix) {
+    padding: 12px;
+  }
+}
