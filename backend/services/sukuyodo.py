@@ -1368,9 +1368,9 @@ class SukuyodoService:
             "name": "感情",
             "icon": "chat-heart",
             "actions": {
-                "first_date": {"name": "第一次約會", "favor_relations": ["eishin", "gyotai"], "favor_weekdays": [4, 5], "favor_score": 75},
-                "confession": {"name": "告白", "favor_relations": ["eishin", "mei"], "favor_score": 80},
-                "matchmaking": {"name": "相親", "favor_relations": ["eishin", "gyotai"], "favor_score": 75},
+                "first_date": {"name": "第一次約會", "favor_relations": ["eishin", "gyotai", "yusui"], "favor_weekdays": [4, 5], "favor_score": 70},
+                "confession": {"name": "告白", "favor_relations": ["eishin", "mei", "yusui"], "favor_score": 70},
+                "matchmaking": {"name": "相親", "favor_relations": ["eishin", "gyotai", "yusui"], "favor_score": 70},
                 "breakup": {"name": "分手", "favor_relations": ["yusui", "ankai"], "favor_score": 60}
             }
         },
