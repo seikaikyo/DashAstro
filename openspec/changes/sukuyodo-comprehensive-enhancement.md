@@ -1,9 +1,10 @@
 ---
 title: 宿曜道全面精進 - 專業詳細分析路線
 type: feature
-status: in-progress
+status: completed
 priority: high
 created: 2026-01-26
+completed: 2026-01-26
 ---
 
 # 宿曜道全面精進
@@ -240,10 +241,12 @@ created: 2026-01-26
 - 備註：採用 CollapsibleCard 而非 Tab 設計，UX 更佳
 
 ### Phase 2（二十七宿輪盤）
-- [ ] 建立 MansionWheel.vue 元件
-- [ ] SVG 繪製 27 宿圓形排列
-- [ ] 實作點擊互動
-- [ ] 高亮關係連線動畫
+- [x] 建立 MansionWheel.vue 元件（SVG 圓形視覺化）
+- [x] 27 宿扇形排列，依五行顯示不同顏色
+- [x] 實作點擊互動（顯示詳細資訊）
+- [x] 高亮本命宿和相容宿位
+- [x] 四象標籤（東方青龍、北方玄武、西方白虎、南方朱雀）
+- [x] 元素圖例說明
 
 ### Phase 3（求職離職指引）
 - [x] 在 SukuyodoView.vue 實作求職離職指引 CollapsibleCard

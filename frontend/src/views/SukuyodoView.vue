@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useProfile } from '../stores/profile'
 import CollapsibleCard from '../components/CollapsibleCard.vue'
+import MansionWheel from '../components/MansionWheel.vue'
 
 const { profile, myBirthDate, partnersWithBirthDate } = useProfile()
 
@@ -288,6 +289,28 @@ const showFormula = ref(false)
 // 顯示歷史典故
 const showHistory = ref(false)
 
+// 二十七宿輪盤
+interface WheelMansion {
+  index: number
+  name_jp: string
+  name_zh: string
+  reading: string
+  element: string
+  personality?: string
+  keywords?: string[]
+}
+const allMansions = ref<WheelMansion[]>([])
+const showWheel = ref(true)
+const selectedWheelMansion = ref<WheelMansion | null>(null)
+
+function handleWheelSelect(mansion: WheelMansion) {
+  if (selectedWheelMansion.value?.index === mansion.index) {
+    selectedWheelMansion.value = null
+  } else {
+    selectedWheelMansion.value = mansion
+  }
+}
+
 // 相性配對查詢
 const compatFinder = ref<CompatibilityFinderResult | null>(null)
 const finderLoading = ref(false)
@@ -354,6 +377,19 @@ onMounted(async () => {
     }
   } catch (e) {
     console.error('Failed to load metadata')
+  }
+
+  // 載入二十七宿資料
+  try {
+    const res = await fetch(`${apiUrl}/api/sukuyodo/mansions`)
+    if (res.ok) {
+      const data = await res.json()
+      if (data.success && data.mansions) {
+        allMansions.value = data.mansions
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load mansions')
   }
 })
 
@@ -1482,6 +1518,51 @@ const toggleLunarDate = (ld: LunarDate) => {
               <li><strong>相生關係：</strong>+5 分</li>
               <li><strong>其他：</strong>無加成</li>
             </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- 二十七宿輪盤 -->
+      <section v-if="allMansions.length > 0" class="wheel-section card">
+        <button class="wheel-toggle" @click="showWheel = !showWheel">
+          <h2><ruby>二十七宿<rp>(</rp><rt>にじゅうしちしゅく</rt><rp>)</rp></ruby>輪盤</h2>
+          <sl-icon :name="showWheel ? 'chevron-up' : 'chevron-down'"></sl-icon>
+        </button>
+
+        <div v-if="showWheel" class="wheel-content">
+          <p class="wheel-intro">
+            二十七宿依據四方神獸分為四象：東方青龍七宿（角至箕）、北方玄武七宿（斗至壁）、
+            西方白虎七宿（奎至參）、南方朱雀六宿（井至軫）。點擊任意星宿可查看詳細資訊。
+          </p>
+
+          <MansionWheel
+            :mansions="allMansions"
+            :user-mansion-index="mansion?.index ?? null"
+            :highlighted-indices="compatFinder ? [
+              ...compatFinder.best_for_marriage.mansions.map(m => m.index),
+              ...compatFinder.past_life_connection.mansions.map(m => m.index)
+            ] : []"
+            @select="handleWheelSelect"
+          />
+
+          <div v-if="selectedWheelMansion" class="wheel-detail">
+            <div class="detail-header">
+              <ruby class="detail-name">
+                {{ selectedWheelMansion.name_jp }}<rp>(</rp><rt>{{ selectedWheelMansion.reading }}</rt><rp>)</rp>
+              </ruby>
+              <span
+                class="detail-element"
+                :style="{ borderColor: elementColors[selectedWheelMansion.element], color: elementColors[selectedWheelMansion.element] }"
+              >
+                {{ selectedWheelMansion.element }}
+              </span>
+            </div>
+            <p v-if="selectedWheelMansion.personality" class="detail-desc">
+              {{ selectedWheelMansion.personality }}
+            </p>
+            <div v-if="selectedWheelMansion.keywords?.length" class="detail-keywords">
+              <span v-for="kw in selectedWheelMansion.keywords" :key="kw" class="keyword-tag">{{ kw }}</span>
+            </div>
           </div>
         </div>
       </section>
@@ -3369,6 +3450,94 @@ ruby rp {
   .day-date {
     min-width: auto;
   }
+}
+
+/* 二十七宿輪盤 */
+.wheel-section {
+  max-width: 700px;
+  margin: 0 auto var(--space-12);
+}
+
+.wheel-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: inherit;
+}
+
+.wheel-toggle h2 {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+}
+
+.wheel-toggle sl-icon {
+  color: var(--text-muted);
+}
+
+.wheel-content {
+  margin-top: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.wheel-intro {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.7;
+  max-width: 500px;
+}
+
+.wheel-detail {
+  width: 100%;
+  padding: var(--space-4);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--stellar-gold);
+}
+
+.wheel-detail .detail-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.wheel-detail .detail-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--stellar-gold);
+}
+
+.wheel-detail .detail-name rt {
+  font-size: 0.5em;
+}
+
+.wheel-detail .detail-element {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid;
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+}
+
+.wheel-detail .detail-desc {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.7;
+  margin-bottom: var(--space-3);
+}
+
+.wheel-detail .detail-keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 /* 宿曜道典故區塊 */
