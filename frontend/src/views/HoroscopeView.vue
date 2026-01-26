@@ -56,7 +56,7 @@ const formatDateRange = (start: string, end: string) => {
         <p>選擇你的星座，查看本週運勢</p>
       </header>
 
-      <div v-if="loading" class="loading">
+      <div v-if="loading" class="loading" aria-live="polite" aria-busy="true">
         <sl-spinner style="font-size: 2rem;"></sl-spinner>
         <p>載入中...</p>
       </div>

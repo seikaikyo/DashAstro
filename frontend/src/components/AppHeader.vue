@@ -56,12 +56,15 @@ const profileIcon = computed(() => isProfileSet.value ? 'person-fill' : 'person'
         <sl-icon-button
           name="list"
           class="menu-toggle"
+          :aria-label="menuOpen ? '關閉選單' : '開啟選單'"
+          :aria-expanded="menuOpen"
+          aria-controls="mobile-nav"
           @click="menuOpen = !menuOpen"
         ></sl-icon-button>
       </div>
     </div>
 
-    <nav :class="['nav-mobile', { open: menuOpen }]">
+    <nav id="mobile-nav" :class="['nav-mobile', { open: menuOpen }]" :aria-hidden="!menuOpen">
       <router-link
         v-for="item in navItems"
         :key="item.path"

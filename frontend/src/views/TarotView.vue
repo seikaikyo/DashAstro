@@ -132,8 +132,10 @@ const drawCards = async () => {
           <label class="form-label">你的問題（選填）</label>
           <sl-textarea
             v-model="question"
+            name="tarot-question"
             placeholder="例如：我的感情會有什麼發展？"
             rows="3"
+            autocomplete="off"
           ></sl-textarea>
           <p class="form-hint">專注於一個具體的問題，會得到更準確的指引</p>
         </div>
@@ -163,6 +165,7 @@ const drawCards = async () => {
           class="btn-gold draw-btn"
           @click="drawCards"
           :disabled="drawing"
+          :aria-busy="drawing"
         >
           <sl-spinner v-if="drawing"></sl-spinner>
           <span v-else>開始抽牌</span>

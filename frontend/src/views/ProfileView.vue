@@ -114,6 +114,7 @@ function getGenderLabel(gender: string) {
           <label>生日</label>
           <sl-input
             type="date"
+            name="user-birthdate"
             v-model="selectedBirthDate"
             :max="new Date().toISOString().split('T')[0]"
             help-text="填寫生日可使用宿曜道運勢預測"
@@ -250,6 +251,7 @@ function getGenderLabel(gender: string) {
           <div class="form-row">
             <sl-input
               type="date"
+              name="partner-birthdate"
               v-model="newPartner.birthDate"
               :max="new Date().toISOString().split('T')[0]"
               size="small"

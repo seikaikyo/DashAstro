@@ -645,6 +645,7 @@ const toggleLunarDate = (ld: LunarDate) => {
         <div class="form-row">
           <sl-input
             type="date"
+            name="sukuyodo-birthdate"
             v-model="birthDate"
             label="西曆生日"
             :max="new Date().toISOString().split('T')[0]"
@@ -653,6 +654,7 @@ const toggleLunarDate = (ld: LunarDate) => {
             class="btn-gold"
             @click="lookupMansion"
             :disabled="!birthDate || lookupLoading"
+            :aria-busy="lookupLoading"
           >
             <sl-spinner v-if="lookupLoading"></sl-spinner>
             <span v-else>查詢</span>
@@ -1168,6 +1170,7 @@ const toggleLunarDate = (ld: LunarDate) => {
               <div class="form-group">
                 <sl-input
                   type="date"
+                  name="compat-person1-birthdate"
                   v-model="date1"
                   label="第一個人的生日"
                   :max="new Date().toISOString().split('T')[0]"
@@ -1176,6 +1179,7 @@ const toggleLunarDate = (ld: LunarDate) => {
               <div class="form-group">
                 <sl-input
                   type="date"
+                  name="compat-person2-birthdate"
                   v-model="date2"
                   label="第二個人的生日"
                   :max="new Date().toISOString().split('T')[0]"
@@ -1185,6 +1189,7 @@ const toggleLunarDate = (ld: LunarDate) => {
                 class="btn-gold"
                 @click="calculateCompatibility"
                 :disabled="!date1 || !date2 || compatLoading"
+                :aria-busy="compatLoading"
               >
                 <sl-spinner v-if="compatLoading"></sl-spinner>
                 <span v-else>分析相性</span>
