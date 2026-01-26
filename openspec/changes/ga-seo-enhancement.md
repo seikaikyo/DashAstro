@@ -1,7 +1,7 @@
 ---
 title: Google Analytics 追蹤 + SEO 強化（中文市場）
 type: feature
-status: pending
+status: in-progress
 priority: high
 created: 2026-01-26
 ---
@@ -226,25 +226,25 @@ Sitemap: https://astro.dashai.dev/sitemap.xml
 ## Checklist
 
 ### Phase 1（GA4）
-- [ ] 建立 GA4 Property
-- [ ] 加入追蹤碼到 index.html
-- [ ] 實作 Vue Router 頁面追蹤
-- [ ] 實作自訂事件追蹤
+- [ ] 建立 GA4 Property（需用戶操作）
+- [x] 加入追蹤碼到 index.html
+- [x] 實作 Vue Router 頁面追蹤
+- [x] 實作自訂事件追蹤 (useGtag.ts)
 
 ### Phase 2（Meta SEO）
-- [ ] 各頁面加入 title/description
-- [ ] 加入 Open Graph 標籤
-- [ ] 加入 Twitter Card 標籤
+- [x] 各頁面加入 title/description
+- [x] 加入 Open Graph 標籤
+- [x] 加入 Twitter Card 標籤
 
 ### Phase 3（技術 SEO）
-- [ ] 建立 sitemap.xml
-- [ ] 建立 robots.txt
-- [ ] 加入結構化資料
-- [ ] 提交 Search Console
+- [x] 建立 sitemap.xml
+- [x] 建立 robots.txt
+- [x] 加入結構化資料 (Schema.org)
+- [ ] 提交 Search Console（需用戶操作）
 
 ### Phase 4（首頁曝光）
-- [ ] 首頁加入宿曜道卡片
-- [ ] 卡片連結到宿曜道頁面
+- [x] 首頁加入宿曜道卡片
+- [x] 卡片連結到宿曜道頁面
 
 ---
 
