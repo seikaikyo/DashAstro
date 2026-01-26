@@ -108,15 +108,24 @@ async def generate_weekly_horoscope(
         try:
             # 呼叫 AI 生成運勢
             element_zh = element_map.get(sign.element, sign.element)
-            result = await claude_service.generate_weekly_horoscope(
-                zodiac_name=sign.name_zh,
-                zodiac_element=element_zh,
-                current_aspects=[],  # 可擴充：傳入當前天象
-                retrograde_planets=[]  # 可擴充：傳入逆行行星
-            )
+            print(f"[Cron] 開始生成 {sign.name_zh} 週運勢...")
+            try:
+                result = await claude_service.generate_weekly_horoscope(
+                    zodiac_name=sign.name_zh,
+                    zodiac_element=element_zh,
+                    current_aspects=[],  # 可擴充：傳入當前天象
+                    retrograde_planets=[]  # 可擴充：傳入逆行行星
+                )
+            except Exception as ai_error:
+                import traceback
+                print(f"[Cron] AI 呼叫異常: {ai_error}")
+                print(f"[Cron] 堆疊: {traceback.format_exc()}")
+                errors.append(f"{sign.name_zh}: AI 異常 - {str(ai_error)}")
+                continue
 
             if not result:
-                errors.append(f"{sign.name_zh}: AI 生成失敗")
+                print(f"[Cron] {sign.name_zh}: AI 回傳 None")
+                errors.append(f"{sign.name_zh}: AI 生成失敗 (回傳空)")
                 continue
 
             # 存入資料庫
