@@ -1519,102 +1519,113 @@ const toggleLunarDate = (ld: LunarDate) => {
             </template>
 
             <template v-else>
-              <!-- 類別選擇 -->
-              <div class="lucky-category-section">
-                <h4>選擇查詢類型</h4>
-                <div class="category-buttons">
+              <div class="lucky-query-layout">
+                <!-- 左側：類別側邊欄 -->
+                <aside class="lucky-sidebar">
                   <button
                     v-for="cat in luckyDayCategories"
                     :key="cat.key"
-                    class="category-btn"
+                    class="sidebar-category-btn"
                     :class="{ active: selectedLuckyCategory === cat.key }"
                     @click="selectLuckyCategory(cat.key)"
                   >
                     <sl-icon :name="cat.icon"></sl-icon>
                     <span>{{ cat.name }}</span>
                   </button>
-                </div>
-              </div>
+                </aside>
 
-              <!-- 項目選擇 -->
-              <div v-if="selectedLuckyCategory && currentCategoryActions.length" class="lucky-action-section">
-                <h4>選擇具體項目</h4>
-                <div class="action-buttons">
-                  <button
-                    v-for="action in currentCategoryActions"
-                    :key="action.key"
-                    class="action-btn"
-                    :class="{ active: selectedLuckyAction === action.key }"
-                    @click="selectLuckyAction(action.key)"
-                  >
-                    {{ action.name }}
-                  </button>
-                </div>
-              </div>
-
-              <!-- 載入中 -->
-              <div v-if="luckyDayLoading" class="loading-state">
-                <sl-spinner></sl-spinner>
-                <span>查詢中...</span>
-              </div>
-
-              <!-- 查詢結果 -->
-              <template v-else-if="luckyDayResult">
-                <div class="lucky-result">
-                  <!-- 你的本命宿 -->
-                  <div class="your-mansion-info">
-                    <span class="mansion-badge" :style="{ backgroundColor: elementColors[luckyDayResult.your_mansion.element] }">
-                      {{ luckyDayResult.your_mansion.name_jp }}
-                    </span>
-                    <span class="mansion-reading">{{ luckyDayResult.your_mansion.reading }}</span>
-                    <span class="mansion-element">{{ luckyDayResult.your_mansion.element }}性</span>
+                <!-- 右側：主內容區 -->
+                <main class="lucky-main">
+                  <!-- 未選擇類別 -->
+                  <div v-if="!selectedLuckyCategory" class="lucky-placeholder">
+                    <sl-icon name="arrow-left"></sl-icon>
+                    <p>請從左側選擇查詢類型</p>
                   </div>
 
-                  <!-- 吉日列表 -->
-                  <div v-if="luckyDayResult.lucky_days.length" class="lucky-days-section">
-                    <h4>近 30 天吉日</h4>
-                    <div class="lucky-days-list">
-                      <div
-                        v-for="day in luckyDayResult.lucky_days"
-                        :key="day.date"
-                        class="lucky-day-item"
-                        :class="day.rating === '大吉' ? 'excellent' : 'good'"
-                      >
-                        <div class="day-header">
-                          <span class="day-date">{{ formatDate(day.date) }} ({{ day.weekday }})</span>
-                          <span class="day-rating" :class="day.rating === '大吉' ? 'excellent' : 'good'">{{ day.rating }}</span>
+                  <!-- 已選擇類別 -->
+                  <template v-else>
+                    <!-- 項目選擇 -->
+                    <div class="lucky-action-section">
+                      <h4>選擇項目</h4>
+                      <div class="action-buttons">
+                        <button
+                          v-for="action in currentCategoryActions"
+                          :key="action.key"
+                          class="action-btn"
+                          :class="{ active: selectedLuckyAction === action.key }"
+                          @click="selectLuckyAction(action.key)"
+                        >
+                          {{ action.name }}
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- 載入中 -->
+                    <div v-if="luckyDayLoading" class="loading-state">
+                      <sl-spinner></sl-spinner>
+                      <span>查詢中...</span>
+                    </div>
+
+                    <!-- 查詢結果 -->
+                    <template v-else-if="luckyDayResult">
+                      <!-- 你的本命宿 -->
+                      <div class="your-mansion-info">
+                        <span class="mansion-badge" :style="{ backgroundColor: elementColors[luckyDayResult.your_mansion.element] }">
+                          {{ luckyDayResult.your_mansion.name_jp }}
+                        </span>
+                        <span class="mansion-reading">{{ luckyDayResult.your_mansion.reading }}</span>
+                        <span class="mansion-element">{{ luckyDayResult.your_mansion.element }}性</span>
+                        <span class="action-label">{{ luckyDayResult.action_name }}</span>
+                      </div>
+
+                      <!-- 吉日/避日雙欄 -->
+                      <div class="lucky-result-grid">
+                        <!-- 吉日列表 -->
+                        <div class="lucky-days-column">
+                          <h4>近 30 天吉日</h4>
+                          <div v-if="luckyDayResult.lucky_days.length" class="days-list">
+                            <div
+                              v-for="day in luckyDayResult.lucky_days"
+                              :key="day.date"
+                              class="day-card lucky"
+                              :class="day.rating === '大吉' ? 'excellent' : 'good'"
+                            >
+                              <div class="day-header">
+                                <span class="day-date">{{ formatDate(day.date) }} ({{ day.weekday }})</span>
+                                <span class="day-rating">{{ day.rating }}</span>
+                              </div>
+                              <span class="day-reason">{{ day.reason }}</span>
+                            </div>
+                          </div>
+                          <p v-else class="no-days">暫無吉日</p>
                         </div>
-                        <span class="day-reason">{{ day.reason }}</span>
+
+                        <!-- 避日列表 -->
+                        <div class="avoid-days-column">
+                          <h4>應避開的日期</h4>
+                          <div v-if="luckyDayResult.avoid_days.length" class="days-list">
+                            <div
+                              v-for="day in luckyDayResult.avoid_days"
+                              :key="day.date"
+                              class="day-card avoid"
+                            >
+                              <span class="day-date">{{ formatDate(day.date) }} ({{ day.weekday }})</span>
+                              <span class="day-reason">{{ day.reason }}</span>
+                            </div>
+                          </div>
+                          <p v-else class="no-days">無需避開</p>
+                        </div>
                       </div>
-                    </div>
-                  </div>
 
-                  <!-- 應避開的日期 -->
-                  <div v-if="luckyDayResult.avoid_days.length" class="avoid-days-section">
-                    <h4>應避開的日期</h4>
-                    <div class="avoid-days-list">
-                      <div
-                        v-for="day in luckyDayResult.avoid_days"
-                        :key="day.date"
-                        class="avoid-day-item"
-                      >
-                        <span class="day-date">{{ formatDate(day.date) }} ({{ day.weekday }})</span>
-                        <span class="day-reason">{{ day.reason }}</span>
+                      <!-- 建議 -->
+                      <div v-if="luckyDayResult.advice" class="lucky-advice">
+                        <sl-icon name="lightbulb"></sl-icon>
+                        <p>{{ luckyDayResult.advice }}</p>
                       </div>
-                    </div>
-                  </div>
-
-                  <!-- 建議 -->
-                  <div v-if="luckyDayResult.advice" class="lucky-advice">
-                    <p>{{ luckyDayResult.advice }}</p>
-                  </div>
-                </div>
-              </template>
-
-              <!-- 未選擇提示 -->
-              <template v-else-if="!selectedLuckyCategory">
-                <p class="hint-text">請選擇查詢類型開始</p>
-              </template>
+                    </template>
+                  </template>
+                </main>
+              </div>
             </template>
           </div>
         </CollapsibleCard>
@@ -3816,10 +3827,85 @@ ruby rp {
 .lucky-query-content {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--space-4);
 }
 
-.lucky-query-content .loading-state {
+.lucky-query-content .no-data {
+  color: var(--text-muted);
+  text-align: center;
+  padding: var(--space-6);
+}
+
+/* 側邊欄 + 主內容區 Layout */
+.lucky-query-layout {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: var(--space-4);
+  min-height: 400px;
+}
+
+/* 左側側邊欄 */
+.lucky-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  background: var(--cosmos-night);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+}
+
+.sidebar-category-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.sidebar-category-btn:hover {
+  background: var(--cosmos-twilight);
+  color: var(--text-primary);
+}
+
+.sidebar-category-btn.active {
+  background: var(--stellar-gold);
+  color: var(--cosmos-night);
+}
+
+.sidebar-category-btn sl-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+/* 右側主內容區 */
+.lucky-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.lucky-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  height: 100%;
+  color: var(--text-muted);
+}
+
+.lucky-placeholder sl-icon {
+  font-size: 2rem;
+}
+
+.lucky-main .loading-state {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3828,51 +3914,14 @@ ruby rp {
   color: var(--text-muted);
 }
 
-.lucky-category-section h4,
-.lucky-action-section h4,
-.lucky-days-section h4,
-.avoid-days-section h4 {
-  color: var(--stellar-gold);
-  font-size: 1rem;
-  margin-bottom: var(--space-3);
+/* 項目選擇 */
+.lucky-action-section h4 {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 400;
+  margin-bottom: var(--space-2);
 }
 
-/* 類別按鈕 */
-.category-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.category-btn {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  background: var(--cosmos-night);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.category-btn:hover {
-  background: var(--cosmos-twilight);
-  border-color: var(--text-muted);
-}
-
-.category-btn.active {
-  background: var(--stellar-gold);
-  border-color: var(--stellar-gold);
-  color: var(--cosmos-night);
-}
-
-.category-btn sl-icon {
-  font-size: 1.1rem;
-}
-
-/* 項目按鈕 */
 .action-buttons {
   display: flex;
   flex-wrap: wrap;
@@ -3880,14 +3929,14 @@ ruby rp {
 }
 
 .action-btn {
-  padding: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   background: var(--cosmos-night);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-pill);
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .action-btn:hover {
@@ -3916,134 +3965,183 @@ ruby rp {
   border-radius: var(--radius-sm);
   color: white;
   font-weight: 500;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .your-mansion-info .mansion-reading {
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .your-mansion-info .mansion-element {
   color: var(--text-secondary);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
-/* 吉日/避日列表 */
-.lucky-days-list,
-.avoid-days-list {
+.your-mansion-info .action-label {
+  margin-left: auto;
+  padding: var(--space-1) var(--space-2);
+  background: var(--nebula-purple);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+/* 吉日/避日雙欄 */
+.lucky-result-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.lucky-days-column h4,
+.avoid-days-column h4 {
+  color: var(--stellar-gold);
+  font-size: 0.9rem;
+  margin-bottom: var(--space-3);
+}
+
+.avoid-days-column h4 {
+  color: #E85D4C;
+}
+
+.days-list {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
 }
 
-.lucky-day-item {
+.day-card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-1);
   padding: var(--space-3);
   background: var(--cosmos-night);
   border-radius: var(--radius-md);
 }
 
-.lucky-day-item.excellent {
+.day-card.lucky.excellent {
   border-left: 3px solid #4A9B5A;
 }
 
-.lucky-day-item.good {
+.day-card.lucky.good {
   border-left: 3px solid var(--stellar-gold);
 }
 
-.avoid-day-item {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  background: var(--cosmos-night);
-  border-radius: var(--radius-md);
+.day-card.avoid {
   border-left: 3px solid #E85D4C;
 }
 
-.day-header {
+.day-card .day-header {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  justify-content: space-between;
 }
 
-.day-date {
+.day-card .day-date {
   font-weight: 500;
   color: var(--text-primary);
+  font-size: 0.85rem;
 }
 
-.day-rating {
-  padding: var(--space-1) var(--space-2);
+.day-card .day-rating {
+  padding: 2px 8px;
   border-radius: var(--radius-sm);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 500;
-}
-
-.day-rating.excellent {
   background: rgba(74, 155, 90, 0.2);
   color: #4A9B5A;
 }
 
-.day-rating.good {
+.day-card.good .day-rating {
   background: rgba(196, 160, 82, 0.2);
   color: var(--stellar-gold);
 }
 
-.day-reason {
-  color: var(--text-secondary);
+.day-card .day-reason {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.no-days {
+  color: var(--text-muted);
   font-size: 0.85rem;
-  line-height: 1.5;
+  text-align: center;
+  padding: var(--space-4);
 }
 
 /* 建議區塊 */
 .lucky-advice {
-  padding: var(--space-4);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
   background: var(--cosmos-night);
   border-radius: var(--radius-md);
   border-left: 3px solid var(--stellar-gold);
 }
 
+.lucky-advice sl-icon {
+  color: var(--stellar-gold);
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
 .lucky-advice p {
   color: var(--text-secondary);
-  line-height: 1.7;
-  font-size: 0.9rem;
+  line-height: 1.6;
+  font-size: 0.85rem;
   margin: 0;
 }
 
-.lucky-query-content .no-data,
-.lucky-query-content .hint-text {
-  color: var(--text-muted);
-  text-align: center;
-  padding: var(--space-4);
-}
-
+/* RWD: Mobile */
 @media (max-width: 768px) {
-  .category-buttons {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+  .lucky-query-layout {
+    grid-template-columns: 1fr;
+    min-height: auto;
   }
 
-  .category-btn {
+  .lucky-sidebar {
+    flex-direction: row;
+    overflow-x: auto;
+    padding: var(--space-2);
+    gap: var(--space-2);
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sidebar-category-btn {
     flex-direction: column;
-    padding: var(--space-3);
+    padding: var(--space-2);
+    min-width: 60px;
+    text-align: center;
+    font-size: 0.75rem;
+    gap: var(--space-1);
+  }
+
+  .sidebar-category-btn sl-icon {
+    font-size: 1.2rem;
+  }
+
+  .lucky-placeholder {
+    padding: var(--space-6);
+  }
+
+  .lucky-placeholder sl-icon {
+    transform: rotate(-90deg);
+  }
+
+  .lucky-placeholder p {
     text-align: center;
   }
 
-  .category-btn span {
-    font-size: 0.85rem;
+  .lucky-result-grid {
+    grid-template-columns: 1fr;
   }
 
-  .action-buttons {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .action-btn {
-    text-align: center;
+  .avoid-days-column {
+    border-top: 1px solid var(--border-default);
+    padding-top: var(--space-4);
   }
 }
 
