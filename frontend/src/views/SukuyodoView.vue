@@ -119,9 +119,12 @@ interface CompatibilityFinderResult {
       display: string
     }
   }
-  best_for_marriage: CompatibilityCategory
-  past_life_connection: CompatibilityCategory
-  should_avoid: CompatibilityCategory
+  mei: CompatibilityCategory           // 命
+  gyotai: CompatibilityCategory        // 業胎
+  eishin: CompatibilityCategory        // 榮親
+  yusui: CompatibilityCategory         // 友衰
+  ankai: CompatibilityCategory         // 安壞
+  kisei: CompatibilityCategory         // 危成
 }
 
 // 運勢相關介面
@@ -395,6 +398,26 @@ const elementColors: Record<string, string> = {
   '月': '#7CB3D9',
   '火': '#E85D4C',
   '水': '#5B8FA8'
+}
+
+// 六種關係 key 與 CSS 類別對照（依分數由高至低排序）
+const relationKeys = [
+  { key: 'eishin', cssClass: 'marriage' },     // 榮親 95 分
+  { key: 'gyotai', cssClass: 'past-life' },    // 業胎 90 分
+  { key: 'mei', cssClass: 'mei' },             // 命 85 分
+  { key: 'kisei', cssClass: 'kisei' },         // 危成 75 分
+  { key: 'yusui', cssClass: 'yusui' },         // 友衰 70 分
+  { key: 'ankai', cssClass: 'avoid' }          // 安壞 50 分
+]
+
+// 根據分數回傳顏色類別
+function getScoreColorClass(score: number | undefined): string {
+  if (!score) return ''
+  if (score >= 90) return 'excellent'
+  if (score >= 80) return 'good'
+  if (score >= 70) return 'normal'
+  if (score >= 60) return 'caution'
+  return 'warning'
 }
 
 const mansionElementColor = computed(() => {
@@ -834,67 +857,28 @@ const toggleLunarDate = (ld: LunarDate) => {
               <span>載入中...</span>
             </div>
             <template v-else>
-              <!-- 最適合結婚 -->
-              <div class="finder-category marriage">
+              <!-- 六種關係類型 -->
+              <div
+                v-for="relKey in relationKeys"
+                :key="relKey.key"
+                class="finder-category"
+                :class="relKey.cssClass"
+              >
                 <div class="category-header">
                   <ruby class="category-name">
-                    {{ compatFinder.best_for_marriage.relation }}<rp>(</rp><rt>{{ compatFinder.best_for_marriage.reading }}</rt><rp>)</rp>
+                    {{ compatFinder[relKey.key as keyof CompatibilityFinderResult]?.relation }}<rp>(</rp><rt>{{ (compatFinder[relKey.key as keyof CompatibilityFinderResult] as CompatibilityCategory)?.reading }}</rt><rp>)</rp>
                   </ruby>
-                  <span class="category-score excellent">{{ compatFinder.best_for_marriage.score }} 分</span>
+                  <span class="category-score" :class="getScoreColorClass((compatFinder[relKey.key as keyof CompatibilityFinderResult] as CompatibilityCategory)?.score)">
+                    {{ (compatFinder[relKey.key as keyof CompatibilityFinderResult] as CompatibilityCategory)?.score }} 分
+                  </span>
                 </div>
-                <p class="category-desc">{{ compatFinder.best_for_marriage.description }}</p>
+                <p class="category-desc">{{ (compatFinder[relKey.key as keyof CompatibilityFinderResult] as CompatibilityCategory)?.description }}</p>
                 <div class="mansion-grid">
                   <button
-                    v-for="m in compatFinder.best_for_marriage.mansions"
+                    v-for="m in (compatFinder[relKey.key as keyof CompatibilityFinderResult] as CompatibilityCategory)?.mansions"
                     :key="m.index"
                     class="mansion-chip"
-                    :class="{ active: selectedMansion?.index === m.index }"
-                    @click="selectedMansion = selectedMansion?.index === m.index ? null : m"
-                  >
-                    <ruby>{{ m.name_jp }}<rp>(</rp><rt>{{ m.reading }}</rt><rp>)</rp></ruby>
-                    <span class="chip-element" :style="{ color: elementColors[m.element] }">{{ m.element }}</span>
-                  </button>
-                </div>
-              </div>
-
-              <!-- 前世之緣 -->
-              <div class="finder-category past-life">
-                <div class="category-header">
-                  <ruby class="category-name">
-                    {{ compatFinder.past_life_connection.relation }}<rp>(</rp><rt>{{ compatFinder.past_life_connection.reading }}</rt><rp>)</rp>
-                  </ruby>
-                  <span class="category-score good">{{ compatFinder.past_life_connection.score }} 分</span>
-                </div>
-                <p class="category-desc">{{ compatFinder.past_life_connection.description }}</p>
-                <div class="mansion-grid">
-                  <button
-                    v-for="m in compatFinder.past_life_connection.mansions"
-                    :key="m.index"
-                    class="mansion-chip"
-                    :class="{ active: selectedMansion?.index === m.index }"
-                    @click="selectedMansion = selectedMansion?.index === m.index ? null : m"
-                  >
-                    <ruby>{{ m.name_jp }}<rp>(</rp><rt>{{ m.reading }}</rt><rp>)</rp></ruby>
-                    <span class="chip-element" :style="{ color: elementColors[m.element] }">{{ m.element }}</span>
-                  </button>
-                </div>
-              </div>
-
-              <!-- 需要避免 -->
-              <div class="finder-category avoid">
-                <div class="category-header">
-                  <ruby class="category-name">
-                    {{ compatFinder.should_avoid.relation }}<rp>(</rp><rt>{{ compatFinder.should_avoid.reading }}</rt><rp>)</rp>
-                  </ruby>
-                  <span class="category-score warning">{{ compatFinder.should_avoid.score }} 分</span>
-                </div>
-                <p class="category-desc">{{ compatFinder.should_avoid.description }}</p>
-                <div class="mansion-grid">
-                  <button
-                    v-for="m in compatFinder.should_avoid.mansions"
-                    :key="m.index"
-                    class="mansion-chip danger"
-                    :class="{ active: selectedMansion?.index === m.index }"
+                    :class="{ active: selectedMansion?.index === m.index, danger: relKey.key === 'ankai' }"
                     @click="selectedMansion = selectedMansion?.index === m.index ? null : m"
                   >
                     <ruby>{{ m.name_jp }}<rp>(</rp><rt>{{ m.reading }}</rt><rp>)</rp></ruby>
@@ -1606,8 +1590,9 @@ const toggleLunarDate = (ld: LunarDate) => {
             :mansions="allMansions"
             :user-mansion-index="mansion?.index ?? null"
             :highlighted-indices="compatFinder ? [
-              ...compatFinder.best_for_marriage.mansions.map(m => m.index),
-              ...compatFinder.past_life_connection.mansions.map(m => m.index)
+              ...compatFinder.eishin.mansions.map(m => m.index),
+              ...compatFinder.gyotai.mansions.map(m => m.index),
+              ...compatFinder.mei.mansions.map(m => m.index)
             ] : []"
             @select="handleWheelSelect"
           />
@@ -2689,15 +2674,27 @@ ruby rp {
 }
 
 .finder-category.marriage .category-name {
-  color: #4A9B5A;
+  color: #4A9B5A;  /* 榮親 - 綠色 */
 }
 
 .finder-category.past-life .category-name {
-  color: #9B7FCF;
+  color: #9B7FCF;  /* 業胎 - 紫色 */
+}
+
+.finder-category.mei .category-name {
+  color: #7CB3D9;  /* 命 - 藍色 */
+}
+
+.finder-category.kisei .category-name {
+  color: #E89B3C;  /* 危成 - 橙色 */
+}
+
+.finder-category.yusui .category-name {
+  color: #8B7355;  /* 友衰 - 褐色 */
 }
 
 .finder-category.avoid .category-name {
-  color: #E89B3C;
+  color: #E85D4C;  /* 安壞 - 紅色 */
 }
 
 .category-score {
@@ -2709,8 +2706,24 @@ ruby rp {
   color: var(--stellar-gold);
 }
 
+.category-score.excellent {
+  color: #4A9B5A;  /* 90+ 分 */
+}
+
+.category-score.good {
+  color: #7CB3D9;  /* 80-89 分 */
+}
+
+.category-score.normal {
+  color: #8B7355;  /* 70-79 分 */
+}
+
+.category-score.caution {
+  color: #E89B3C;  /* 60-69 分 */
+}
+
 .category-score.warning {
-  color: #E89B3C;
+  color: #E85D4C;  /* 60 分以下 */
 }
 
 .category-desc {
