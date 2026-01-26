@@ -1,26 +1,27 @@
 """Cron Job 路由 - 供 Render Cron Job 呼叫"""
-import os
+import logging
 from datetime import date, timedelta
 from fastapi import APIRouter, Header, HTTPException, Depends
 from sqlmodel import Session, select
 
+from config import get_settings
 from database import get_session
 from models.zodiac import ZodiacSign
 from models.horoscope import WeeklyHoroscope
 from services.claude_ai import claude_service
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/cron", tags=["Cron"])
-
-# Cron Job 密鑰（防止外部隨意呼叫）
-CRON_SECRET = os.getenv("CRON_SECRET", "")
+settings = get_settings()
 
 
 def verify_cron_secret(x_cron_secret: str = Header(None)):
     """驗證 Cron Job 密鑰"""
-    if not CRON_SECRET:
-        # 未設定密鑰時，允許呼叫（開發環境）
-        return True
-    if x_cron_secret != CRON_SECRET:
+    # 必須設定 CRON_SECRET 才能呼叫 cron 端點
+    if not settings.cron_secret:
+        logger.warning("CRON_SECRET 未設定，拒絕 cron 請求")
+        raise HTTPException(status_code=403, detail="Cron secret not configured")
+    if x_cron_secret != settings.cron_secret:
         raise HTTPException(status_code=401, detail="Invalid cron secret")
     return True
 
@@ -106,29 +107,25 @@ async def generate_weekly_horoscope(
 
     for sign in signs:
         try:
-            # 呼叫 AI 生成運勢
             element_zh = element_map.get(sign.element, sign.element)
-            print(f"[Cron] 開始生成 {sign.name_zh} 週運勢...")
+            logger.info(f"開始生成 {sign.name_zh} 週運勢")
             try:
                 result = await claude_service.generate_weekly_horoscope(
                     zodiac_name=sign.name_zh,
                     zodiac_element=element_zh,
-                    current_aspects=[],  # 可擴充：傳入當前天象
-                    retrograde_planets=[]  # 可擴充：傳入逆行行星
+                    current_aspects=[],
+                    retrograde_planets=[]
                 )
             except Exception as ai_error:
-                import traceback
-                print(f"[Cron] AI 呼叫異常: {ai_error}")
-                print(f"[Cron] 堆疊: {traceback.format_exc()}")
+                logger.exception(f"AI 呼叫異常 ({sign.name_zh}): {ai_error}")
                 errors.append(f"{sign.name_zh}: AI 異常 - {str(ai_error)}")
                 continue
 
             if not result:
-                print(f"[Cron] {sign.name_zh}: AI 回傳 None")
+                logger.warning(f"{sign.name_zh}: AI 回傳 None")
                 errors.append(f"{sign.name_zh}: AI 生成失敗 (回傳空)")
                 continue
 
-            # 存入資料庫
             horoscope = WeeklyHoroscope(
                 zodiac_id=sign.id,
                 week_start=week_start,
@@ -143,9 +140,10 @@ async def generate_weekly_horoscope(
             )
             session.add(horoscope)
             generated_count += 1
-            print(f"[Cron] {sign.name_zh} 週運勢生成完成")
+            logger.info(f"{sign.name_zh} 週運勢生成完成")
 
         except Exception as e:
+            logger.exception(f"生成 {sign.name_zh} 週運勢時發生錯誤")
             errors.append(f"{sign.name_zh}: {str(e)}")
 
     session.commit()

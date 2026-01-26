@@ -3,6 +3,7 @@ from sqlmodel import Session, select
 from typing import Optional
 import random
 
+from config import get_settings
 from database import get_session
 from models.tarot import (
     TarotCard, TarotCardRead,
@@ -14,6 +15,7 @@ from models.tarot import (
 from models.stats import Features
 from services.stats import stats_service
 
+settings = get_settings()
 router = APIRouter(prefix="/api/tarot", tags=["Tarot"])
 
 
@@ -144,7 +146,7 @@ def test_ai_service():
 
     try:
         response = claude_service.client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model=settings.claude_model,
             max_tokens=50,
             messages=[{"role": "user", "content": "說 OK"}]
         )

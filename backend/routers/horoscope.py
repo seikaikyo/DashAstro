@@ -3,6 +3,7 @@ from sqlmodel import Session, select
 from datetime import date, timedelta, datetime
 from typing import Optional
 
+from config import get_settings
 from database import get_session
 from models.zodiac import ZodiacSign, ZodiacSignRead, ZodiacSignWithDetails
 from models.horoscope import (
@@ -12,6 +13,7 @@ from models.horoscope import (
 from models.stats import Features
 from services.stats import stats_service
 
+settings = get_settings()
 router = APIRouter(prefix="/api/horoscope", tags=["Horoscope"])
 
 MONTH_NAMES = {
@@ -215,7 +217,7 @@ async def generate_monthly_horoscope(
 
     try:
         response = claude_service.client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model=settings.claude_model,
             max_tokens=800,
             messages=[{"role": "user", "content": prompt}]
         )

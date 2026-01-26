@@ -1,3 +1,4 @@
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -6,6 +7,12 @@ from config import get_settings
 from database import init_db
 from routers import health_router, horoscope_router, tarot_router, astronomy_router, compatibility_router, stats_router, lucky_days_router, sukuyodo_router, cron_router
 
+# 設定基本 logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
@@ -44,7 +51,7 @@ def update_tarot_meanings():
         # 檢查是否需要更新 (用愚者牌檢查)
         card = session.exec(select(TarotCard).where(TarotCard.number == 0)).first()
         if card and "準備好開始新的事情" in card.upright_meaning:
-            print("[啟動] 牌義已是白話版本，跳過更新")
+            logger.info("牌義已是白話版本，跳過更新")
             return
 
         for number, (upright, reversed) in MEANINGS.items():
@@ -54,7 +61,7 @@ def update_tarot_meanings():
                 card.reversed_meaning = reversed
                 session.add(card)
         session.commit()
-        print("[啟動] 已更新塔羅牌義為白話版本")
+        logger.info("已更新塔羅牌義為白話版本")
 
 
 @asynccontextmanager
@@ -66,7 +73,7 @@ async def lifespan(app: FastAPI):
         try:
             update_tarot_meanings()
         except Exception as e:
-            print(f"[啟動] 更新牌義失敗: {e}")
+            logger.warning(f"更新牌義失敗: {e}")
     yield
     # 關閉時 (如有需要)
 
@@ -81,7 +88,7 @@ app = FastAPI(
 # CORS 設定
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 允許所有來源
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
