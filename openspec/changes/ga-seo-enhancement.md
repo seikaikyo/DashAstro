@@ -246,6 +246,11 @@ Sitemap: https://astro.dashai.dev/sitemap.xml
 - [x] 首頁加入宿曜道卡片
 - [x] 卡片連結到宿曜道頁面
 
+### Phase 5（效能優化）
+- [x] 建立 LoadingSkeleton 元件
+- [x] App.vue 整合骨架載入
+- [x] 預熱後端 API 處理 cold start
+
 ---
 
 ## 備註
