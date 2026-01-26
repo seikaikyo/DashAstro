@@ -1,10 +1,12 @@
 """
 Claude AI 服務 - 塔羅解讀與星座運勢生成
 """
+import logging
 from anthropic import Anthropic
 from typing import Optional
 from config import get_settings
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
@@ -24,8 +26,7 @@ class ClaudeAIService:
         """取得服務狀態"""
         return {
             "available": self._is_available(),
-            "has_api_key": bool(settings.anthropic_api_key),
-            "api_key_prefix": settings.anthropic_api_key[:10] + "..." if settings.anthropic_api_key else None
+            "has_api_key": bool(settings.anthropic_api_key)
         }
 
     async def interpret_tarot_reading(
@@ -101,21 +102,16 @@ class ClaudeAIService:
 - 台灣口語，親切一點"""
 
         try:
-            print(f"[AI] 開始呼叫 Claude API，牌數: {len(cards)}")
-            # 使用 Claude 3.5 Sonnet 作為主要模型
+            logger.info(f"開始呼叫 Claude API，牌數: {len(cards)}")
             response = self.client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model=settings.claude_model,
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}]
             )
-            print(f"[AI] Claude API 回應成功")
+            logger.info("Claude API 回應成功")
             return response.content[0].text
         except Exception as e:
-            import traceback
-            error_type = type(e).__name__
-            print(f"[AI] Claude API 錯誤類型: {error_type}")
-            print(f"[AI] Claude API 錯誤訊息: {e}")
-            print(f"[AI] 詳細堆疊: {traceback.format_exc()}")
+            logger.exception(f"Claude API 錯誤: {e}")
             return None
 
     async def generate_weekly_horoscope(
@@ -174,22 +170,20 @@ class ClaudeAIService:
 - 只回覆 JSON，不要其他文字"""
 
         try:
-            # 使用 Claude Sonnet 4 作為主要模型
-            print(f"[AI] 開始呼叫 Claude API 生成 {zodiac_name} 週運勢")
+            logger.info(f"開始呼叫 Claude API 生成 {zodiac_name} 週運勢")
             response = self.client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model=settings.claude_model,
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}]
             )
-            print(f"[AI] Claude API 回應成功")
+            logger.info("Claude API 回應成功")
 
             import json
             result_text = response.content[0].text.strip()
-            print(f"[AI] 原始回應: {result_text[:200]}...")
+            logger.debug(f"原始回應: {result_text[:200]}...")
 
             # 移除可能的 markdown 標記
             if result_text.startswith("```"):
-                # 處理 ```json 或 ``` 開頭
                 first_newline = result_text.find("\n")
                 if first_newline != -1:
                     result_text = result_text[first_newline + 1:]
@@ -197,16 +191,14 @@ class ClaudeAIService:
                 result_text = result_text[:-3].strip()
 
             parsed = json.loads(result_text)
-            print(f"[AI] JSON 解析成功: {zodiac_name}")
+            logger.info(f"JSON 解析成功: {zodiac_name}")
             return parsed
         except json.JSONDecodeError as je:
-            print(f"[AI] JSON 解析錯誤 ({zodiac_name}): {je}")
-            print(f"[AI] 無法解析的文字: {result_text[:500]}")
+            logger.error(f"JSON 解析錯誤 ({zodiac_name}): {je}")
+            logger.debug(f"無法解析的文字: {result_text[:500]}")
             return None
         except Exception as e:
-            import traceback
-            print(f"[AI] Claude API 錯誤 ({zodiac_name}): {e}")
-            print(f"[AI] 詳細: {traceback.format_exc()}")
+            logger.exception(f"Claude API 錯誤 ({zodiac_name}): {e}")
             return None
 
 

@@ -15,6 +15,10 @@ class Settings(BaseSettings):
 
     # Claude API
     anthropic_api_key: str = ""
+    claude_model: str = "claude-sonnet-4-20250514"
+
+    # Cron 安全
+    cron_secret: str = ""
 
     # CORS
     cors_origins: list[str] = [
