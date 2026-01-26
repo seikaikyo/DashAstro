@@ -65,6 +65,13 @@ onMounted(async () => {
             <h3>今日天象</h3>
             <p>即時行星位置、逆行、相位資訊</p>
           </router-link>
+
+          <router-link to="/sukuyodo" class="feature-card sukuyodo-card">
+            <div class="feature-icon">&#9764;</div>
+            <h3>宿曜道</h3>
+            <p>真言宗密教占星術，查詢本命宿與相性</p>
+            <span class="card-badge">東方占星</span>
+          </router-link>
         </div>
       </div>
     </section>
@@ -173,6 +180,29 @@ onMounted(async () => {
 .feature-card p {
   color: var(--text-secondary);
   font-size: 0.95rem;
+}
+
+.sukuyodo-card {
+  position: relative;
+  background: linear-gradient(135deg, var(--cosmos-dusk) 0%, rgba(139, 69, 19, 0.15) 100%);
+  border-color: rgba(205, 133, 63, 0.3);
+}
+
+.sukuyodo-card:hover {
+  border-color: rgba(205, 133, 63, 0.6);
+  box-shadow: 0 0 20px rgba(205, 133, 63, 0.2);
+}
+
+.card-badge {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  background: rgba(205, 133, 63, 0.2);
+  color: #cd853f;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(205, 133, 63, 0.4);
 }
 
 @media (max-width: 768px) {
