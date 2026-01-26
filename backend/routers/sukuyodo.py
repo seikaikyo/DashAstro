@@ -24,19 +24,22 @@ async def get_all_mansions():
     取得 27 宿列表
 
     返回所有本命宿的基本資料，包含名稱、讀音、元素等。
+    用於輪盤視覺化和宿位查詢。
     """
     mansions = sukuyodo_service.get_all_mansions()
 
-    # 只回傳基本資料，不包含詳細描述
     return {
+        "success": True,
         "count": len(mansions),
         "mansions": [
             {
                 "index": m["index"],
                 "name_jp": m["name_jp"],
+                "name_zh": m.get("name_zh", m["name_jp"]),
                 "reading": m["reading"],
                 "element": m["element"],
-                "keywords": m["keywords"]
+                "keywords": m["keywords"],
+                "personality": m.get("personality", "")
             }
             for m in mansions
         ]
