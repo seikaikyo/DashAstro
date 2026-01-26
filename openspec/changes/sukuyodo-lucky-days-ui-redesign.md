@@ -1,7 +1,7 @@
 ---
 title: 吉日查詢 UI 重新設計
 type: refactor
-status: in-progress
+status: completed
 priority: high
 created: 2026-01-26
 ---
@@ -104,4 +104,4 @@ created: 2026-01-26
 - [x] 設計桌面版 Layout
 - [x] 設計手機版 Layout
 - [x] 實作新 UI
-- [ ] 測試 RWD 表現
+- [x] 測試 RWD 表現（整合於宿曜道全面重設計）
