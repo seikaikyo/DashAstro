@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useProfile, ZODIAC_SIGNS, GENDER_OPTIONS, getZodiacFromBirthDate } from '../stores/profile'
 import type { Partner } from '../stores/profile'
 
@@ -23,9 +23,13 @@ const selectedBirthDate = ref(profile.value.birthDate || '')
 
 // 新增對象表單
 const showAddPartner = ref(false)
+const defaultPartnerGender = computed(() => {
+  // 本人是男 → 預設女，反之亦然
+  return profile.value.gender === 'male' ? 'female' : 'male'
+})
 const newPartner = ref({
   nickname: '',
-  gender: 'male' as 'male' | 'female' | 'other',
+  gender: defaultPartnerGender.value as 'male' | 'female' | 'other',
   zodiacCode: '',
   birthDate: ''
 })
@@ -73,7 +77,7 @@ function handleAddPartner() {
     // 重置表單
     newPartner.value = {
       nickname: '',
-      gender: 'male',
+      gender: defaultPartnerGender.value,
       zodiacCode: '',
       birthDate: ''
     }
