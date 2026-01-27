@@ -1,7 +1,7 @@
 ---
 title: 宿曜道頁面 UI 2.0 全面重製
 type: refactor
-status: in-progress
+status: completed
 priority: high
 created: 2026-01-26
 ---
@@ -297,6 +297,8 @@ frontend/src/
 - [x] 執行 /web-design-guidelines 審查
   - [x] 修復 sl-icon 缺少 aria-hidden (裝飾性圖示)
   - [x] 修復 toggle 按鈕缺少 aria-expanded
-- [ ] 測試 RWD 表現
-- [ ] 測試無障礙 (WCAG AA)
-- [ ] 確認無問題後替換正式版
+- [x] 測試 RWD 表現 (agent-browser 桌面版/手機版)
+- [x] 測試無障礙 (WCAG AA) - ARIA roles 正確
+- [x] 確認無問題後替換正式版
+  - [x] `/sukuyodo` 路由指向 V2 版本
+  - [x] 舊版保留於 `/sukuyodo-legacy` 供回退
