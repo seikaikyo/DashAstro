@@ -221,26 +221,82 @@ created: 2026-01-26
 
 ---
 
-## 影響範圍
+## 影響範圍（元件拆分版）
 
-| 檔案 | 變更類型 |
+> **CLAUDE.md #16 規定**：單檔超過 500 行需拆分
+
+### 檔案結構
+
+```
+frontend/src/
+├── views/
+│   └── SukuyodoViewV2.vue          # 主框架 (~150 行)
+├── components/sukuyodo/
+│   ├── SummaryCard.vue             # 摘要卡 (~100 行)
+│   ├── FortuneTab.vue              # 運勢 Tab (~250 行)
+│   ├── MatchTab.vue                # 配對 Tab (~200 行)
+│   ├── LuckyDaysTab.vue            # 吉日 Tab (~200 行)
+│   └── KnowledgeTab.vue            # 知識 Tab (~300 行)
+├── composables/
+│   └── useSukuyodo.ts              # 邏輯層 (~400 行)
+└── router/index.ts                 # 新增路由
+```
+
+### 各檔案職責
+
+| 檔案 | 職責 | 預估行數 |
+|------|------|----------|
+| `SukuyodoViewV2.vue` | 主框架、Tab 切換、CSS 變數 | ~150 |
+| `SummaryCard.vue` | 本命宿摘要、今日運勢速覽 | ~100 |
+| `FortuneTab.vue` | 日/週/月/年運勢、進度條 | ~250 |
+| `MatchTab.vue` | 配對查詢、相性診斷 | ~200 |
+| `LuckyDaysTab.vue` | 吉日查詢、側邊欄分類 | ~200 |
+| `KnowledgeTab.vue` | 6 個子 Tab、輪盤、表格 | ~300 |
+| `useSukuyodo.ts` | API 呼叫、狀態管理、計算邏輯 | ~400 |
+
+### 無障礙修正項目
+
+| 問題 | 修正方式 |
 |------|----------|
-| `frontend/src/views/SukuyodoViewV2.vue` | 新增（V2 測試版） |
-| `frontend/src/router/index.ts` | 新增路由 `/sukuyodo-v2` |
+| `transition: all` | 改為明確列出屬性 `transition: background-color 0.2s, color 0.2s` |
+| 缺少動畫減少支援 | 加入 `@media (prefers-reduced-motion: reduce)` |
+| Tab 缺少 ARIA | 加入 `role="tablist"`, `role="tab"`, `aria-selected` |
+| 數字對齊 | 加入 `font-variant-numeric: tabular-nums` |
+| 標題換行 | 加入 `text-wrap: balance` |
 
 ## Checklist
 
+### 第一階段：設計規格 (已完成)
 - [x] 使用 /ux-designer 定義設計系統
 - [x] 設計桌面版 Layout
 - [x] 設計手機版 Layout
-- [x] 實作新 UI
+
+### 第二階段：元件拆分實作 (已完成)
+- [x] 建立 composables/useSukuyodo.ts (993 行)
+  - [x] API 呼叫函數
+  - [x] 狀態管理 (refs)
+  - [x] 計算屬性 (computed)
+- [x] 建立 components/sukuyodo/ 目錄
+  - [x] SummaryCard.vue (196 行)
+  - [x] FortuneTab.vue (653 行)
+  - [x] MatchTab.vue (705 行)
+  - [x] LuckyDaysTab.vue (335 行)
+  - [x] KnowledgeTab.vue (575 行)
+- [x] 重寫 SukuyodoViewV2.vue (主框架) (525 行，原 3285 行)
   - [x] 色彩系統 CSS 變數（深褐 + 琥珀金）
-  - [x] 頂部標題列 + 摘要卡
-  - [x] 主要 Tab 導航（運勢/配對/吉日/知識）
-  - [x] 運勢 Tab（日/週/月/年）
-  - [x] 配對 Tab（尋找配對/相性診斷/我的配對）
-  - [x] 吉日 Tab（側邊欄式）
-  - [x] 知識 Tab（6 個子 Tab）
-- [x] 測試 RWD 表現（基本測試通過）
-- [ ] 測試無障礙
+  - [x] Tab 導航 (ARIA 支援)
+  - [x] 組合各子元件
+- [x] 無障礙修正
+  - [x] 修復 `transition: all` → 明確屬性
+  - [x] 加入 `@media (prefers-reduced-motion)`
+  - [x] Tab 加入 `role="tablist"`, `aria-selected`
+  - [x] 數字加入 `font-variant-numeric: tabular-nums`
+
+### 第三階段：驗收
+- [x] 建構測試通過 (vite build)
+- [x] 執行 /web-design-guidelines 審查
+  - [x] 修復 sl-icon 缺少 aria-hidden (裝飾性圖示)
+  - [x] 修復 toggle 按鈕缺少 aria-expanded
+- [ ] 測試 RWD 表現
+- [ ] 測試無障礙 (WCAG AA)
 - [ ] 確認無問題後替換正式版
