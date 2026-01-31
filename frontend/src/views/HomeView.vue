@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { apiUrl } from '@/config/api'
 
 interface MoonPhase {
   phase_name_zh: string
@@ -7,7 +8,6 @@ interface MoonPhase {
 }
 
 const moonPhase = ref<MoonPhase | null>(null)
-const apiUrl = import.meta.env.VITE_API_URL || 'https://dashastro-api.onrender.com'
 
 onMounted(async () => {
   try {

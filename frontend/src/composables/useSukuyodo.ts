@@ -1,5 +1,6 @@
 import { ref, computed, watch } from 'vue'
 import { useProfile } from '../stores/profile'
+import { apiUrl } from '@/config/api'
 
 // ============================================================================
 // Type Definitions
@@ -372,7 +373,6 @@ export interface Metadata {
 
 export function useSukuyodo() {
   const { myBirthDate, partnersWithBirthDate } = useProfile()
-  const apiUrl = import.meta.env.VITE_API_URL || 'https://dashastro-api.onrender.com'
 
   // Tab Navigation
   const activeMainTab = ref<'fortune' | 'match' | 'lucky' | 'knowledge'>('fortune')

@@ -80,6 +80,9 @@ class SukuyodoService:
 
         Returns:
             (年, 月, 日, 是否閏月)
+
+        Raises:
+            RuntimeError: 當 lunarcalendar 套件未安裝時
         """
         try:
             from lunarcalendar import Converter, Solar
@@ -87,37 +90,11 @@ class SukuyodoService:
             lunar = Converter.Solar2Lunar(solar)
             return (lunar.year, lunar.month, lunar.day, lunar.isleap)
         except ImportError:
-            # 如果沒有安裝 lunarcalendar，使用簡易近似算法
-            # 這只是備用方案，生產環境應該安裝 lunarcalendar
-            return self._approximate_lunar(solar_date)
-
-    def _approximate_lunar(self, solar_date: date) -> tuple[int, int, int, bool]:
-        """
-        簡易農曆近似算法（備用）
-
-        注意：這只是近似值，可能有 1-2 天誤差
-        生產環境請安裝 lunarcalendar 套件
-        """
-        # 以春節（約 2 月初）為基準估算
-        # 這是非常簡化的算法，只用於沒有 lunarcalendar 時的備用
-        year = solar_date.year
-        month = solar_date.month
-        day = solar_date.day
-
-        # 春節約在 1/21 - 2/20 之間
-        # 簡化：假設春節在 2 月 1 日
-        if month == 1 or (month == 2 and day < 10):
-            lunar_year = year - 1
-            lunar_month = 12 if month == 1 else 1
-        else:
-            lunar_year = year
-            # 農曆月份約比西曆晚 1 個月
-            lunar_month = (month - 1) if month > 1 else 12
-
-        # 日期簡化處理
-        lunar_day = day if day <= 30 else 30
-
-        return (lunar_year, lunar_month, lunar_day, False)
+            raise RuntimeError(
+                "lunarcalendar 套件未安裝。"
+                "請執行 'pip install lunarcalendar' 安裝。"
+                "宿曜道計算需要精確的農曆轉換，不接受近似值。"
+            )
 
     def lunar_to_solar(self, lunar_year: int, lunar_month: int, lunar_day: int) -> date | None:
         """

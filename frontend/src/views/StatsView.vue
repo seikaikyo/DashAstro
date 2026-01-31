@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { apiUrl } from '@/config/api'
 
 interface StatsSummary {
   period_days: number
@@ -23,8 +24,6 @@ interface FeatureInfo {
   code: string
   name: string
 }
-
-const apiUrl = import.meta.env.VITE_API_URL || 'https://dashastro-api.onrender.com'
 
 const summary = ref<StatsSummary | null>(null)
 const dailyData = ref<DailyData[]>([])

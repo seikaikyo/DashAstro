@@ -2,6 +2,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useProfile, type Partner } from '../stores/profile'
 import PartnerSelector from '../components/PartnerSelector.vue'
+import { apiUrl } from '@/config/api'
 
 interface Planet {
   planet: string
@@ -67,8 +68,6 @@ const error = ref('')
 
 // 當前選擇的對象（預設為主要對象）
 const selectedPartner = ref<Partner | null>(null)
-
-const apiUrl = import.meta.env.VITE_API_URL || 'https://dashastro-api.onrender.com'
 
 onMounted(async () => {
   try {

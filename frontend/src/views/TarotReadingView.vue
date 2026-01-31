@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { apiUrl } from '@/config/api'
 
 interface DrawnCard {
   card_id: number
@@ -34,8 +35,6 @@ const loading = ref(true)
 const revealedCards = ref<Set<number>>(new Set())
 const interpreting = ref(false)
 const interpretError = ref('')
-
-const apiUrl = import.meta.env.VITE_API_URL || 'https://dashastro-api.onrender.com'
 
 onMounted(async () => {
   try {

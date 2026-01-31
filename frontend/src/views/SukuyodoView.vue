@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useProfile } from '../stores/profile'
 import CollapsibleCard from '../components/CollapsibleCard.vue'
 import MansionWheel from '../components/MansionWheel.vue'
+import { apiUrl } from '@/config/api'
 
 const { profile, myBirthDate, partnersWithBirthDate } = useProfile()
 
@@ -267,8 +268,6 @@ interface WeeklyFortune {
     color_hex: string
   }
 }
-
-const apiUrl = import.meta.env.VITE_API_URL || 'https://dashastro-api.onrender.com'
 
 // 本命宿查詢
 const birthDate = ref('')
