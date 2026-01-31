@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { apiUrl } from '@/config/api'
 
 interface ZodiacSign {
   id: number
@@ -16,8 +17,6 @@ interface ZodiacSign {
 const signs = ref<ZodiacSign[]>([])
 const loading = ref(true)
 const error = ref('')
-
-const apiUrl = import.meta.env.VITE_API_URL || 'https://dashastro-api.onrender.com'
 
 const elementColors: Record<string, string> = {
   fire: '#E85D4C',

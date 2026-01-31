@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProfile, ZODIAC_SIGNS } from '../stores/profile'
+import { apiUrl } from '@/config/api'
 
 interface TarotSpread {
   id: number
@@ -21,8 +22,6 @@ const question = ref('')
 const includeCompatibility = ref(true)
 const loading = ref(true)
 const drawing = ref(false)
-
-const apiUrl = import.meta.env.VITE_API_URL || 'https://dashastro-api.onrender.com'
 
 onMounted(async () => {
   try {

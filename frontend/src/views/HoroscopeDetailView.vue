@@ -3,6 +3,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useProfile, ZODIAC_SIGNS, type Partner } from '../stores/profile'
 import PartnerSelector from '../components/PartnerSelector.vue'
+import { apiUrl } from '@/config/api'
 
 interface WeeklyHoroscope {
   zodiac_code: string
@@ -100,8 +101,6 @@ const selectedPartner = ref<Partner | null>(null)
 // 一粒萬倍日
 const todayLucky = ref<TodayLucky | null>(null)
 const monthLuckyDays = ref<LuckyDay[]>([])
-
-const apiUrl = import.meta.env.VITE_API_URL || 'https://dashastro-api.onrender.com'
 
 const code = computed(() => route.params.code as string)
 

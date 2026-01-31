@@ -6,6 +6,7 @@ import AppFooter from './components/AppFooter.vue'
 import ProfileSetup from './components/ProfileSetup.vue'
 import LoadingSkeleton from './components/LoadingSkeleton.vue'
 import { useProfile } from './stores/profile'
+import { apiUrl } from '@/config/api'
 
 const { isProfileSet } = useProfile()
 const showSetup = ref(false)
@@ -13,7 +14,6 @@ const setupDismissed = ref(false)
 const isLoading = ref(true)
 
 const SETUP_DISMISSED_KEY = 'dashastro_setup_dismissed'
-const apiUrl = import.meta.env.VITE_API_URL || 'https://dashastro-api.onrender.com'
 
 onMounted(async () => {
   // 檢查是否已略過設定
