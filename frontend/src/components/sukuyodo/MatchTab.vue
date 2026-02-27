@@ -179,8 +179,18 @@ function handleMansionClick(m: CompatibleMansion) {
             <span class="person-element">{{ compatibility.person1.element }}</span>
           </div>
           <div class="relation-arrow">
-            <span class="relation-name">{{ compatibility.relation.name }}</span>
+            <span class="relation-name">
+              {{ compatibility.relation.name }}
+              <template v-if="compatibility.relation.direction">（{{ compatibility.relation.direction }}）</template>
+            </span>
             <span class="relation-reading">{{ compatibility.relation.reading }}</span>
+            <span
+              v-if="compatibility.relation.distance_type_name"
+              class="distance-tag"
+              :class="compatibility.relation.distance_type"
+            >
+              {{ compatibility.relation.distance_type_name }}
+            </span>
           </div>
           <div class="person-card">
             <h5>對方</h5>
@@ -565,6 +575,30 @@ function handleMansionClick(m: CompatibleMansion) {
 .relation-arrow .relation-reading {
   font-size: var(--font-sm);
   color: var(--text-secondary);
+}
+
+.distance-tag {
+  display: inline-block;
+  margin-top: var(--space-xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: 500;
+}
+
+.distance-tag.near {
+  background: var(--success);
+  color: var(--bg-primary);
+}
+
+.distance-tag.mid {
+  background: var(--info);
+  color: var(--bg-primary);
+}
+
+.distance-tag.far {
+  background: var(--text-secondary);
+  color: var(--bg-primary);
 }
 
 .compat-detail {

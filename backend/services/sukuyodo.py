@@ -30,6 +30,34 @@ class SukuyodoService:
         12: 9,   # 十二月：女宿
     }
 
+    # 距離類型對照表：用於判斷近距離/中距離/遠距離及方向性
+    # direction_map: 從 person1 角度看，該距離代表的方向（如 1 = 栄，26 = 親）
+    DISTANCE_TYPE_MAP = {
+        "eishin": {
+            "near": {"distances": [1, 26], "direction_map": {1: "栄", 26: "親"}},
+            "mid": {"distances": [10, 17], "direction_map": {10: "栄", 17: "親"}},
+            "far": {"distances": [3, 12, 15, 24], "direction_map": {3: "栄", 12: "栄", 15: "親", 24: "親"}}
+        },
+        "yusui": {
+            "near": {"distances": [2, 25], "direction_map": {2: "友", 25: "衰"}},
+            "mid": {"distances": [11, 16], "direction_map": {11: "友", 16: "衰"}},
+            "far": {"distances": [5, 13, 14, 22], "direction_map": {5: "友", 13: "友", 14: "衰", 22: "衰"}}
+        },
+        "ankai": {
+            "near": {"distances": [4, 23], "direction_map": {4: "安", 23: "壊"}},
+            "mid": {"distances": [6, 21], "direction_map": {6: "安", 21: "壊"}}
+        },
+        "kisei": {
+            "near": {"distances": [7, 20], "direction_map": {7: "危", 20: "成"}},
+            "mid": {"distances": [8, 19], "direction_map": {8: "危", 19: "成"}}
+        },
+        "mei": {"near": {"distances": [0], "direction_map": {0: "命"}}},
+        "gyotai": {
+            "near": {"distances": [9], "direction_map": {9: "業"}},
+            "far": {"distances": [18], "direction_map": {18: "胎"}}
+        }
+    }
+
     def __init__(self):
         self._mansions_data = None
         self._relations_data = None
@@ -211,18 +239,23 @@ class SukuyodoService:
             index2: 第二個宿的索引 (0-26)
 
         Returns:
-            關係資料
+            關係資料（包含 distance_type 和 direction）
         """
-        # 計算距離（雙向）
-        distance = abs(index2 - index1)
-        reverse_distance = 27 - distance
+        # 計算有向距離：從 index1 到 index2
+        # forward_distance: index1 往前數幾格到 index2
+        forward_distance = (index2 - index1) % 27
 
         # 檢查各種關係
         for rel_key, rel_data in self.relations_data.items():
             distances = rel_data["distances"]
-            if distance in distances or reverse_distance in distances:
+            if forward_distance in distances:
+                # 找到匹配的關係，計算距離類型和方向
+                distance_type, direction = self._get_distance_info(rel_key, forward_distance)
                 return {
                     "type": rel_key,
+                    "distance_type": distance_type,
+                    "distance_type_name": self._get_distance_type_name(distance_type),
+                    "direction": direction,
                     **rel_data
                 }
 
@@ -232,8 +265,37 @@ class SukuyodoService:
             "name": "未知",
             "score": 50,
             "description": "無法判斷關係類型",
-            "advice": ""
+            "advice": "",
+            "distance_type": None,
+            "distance_type_name": "",
+            "direction": None
         }
+
+    def _get_distance_info(self, rel_type: str, distance: int) -> tuple[str | None, str | None]:
+        """
+        根據關係類型和距離，取得距離類型和方向
+
+        Args:
+            rel_type: 關係類型 (eishin, yusui, etc.)
+            distance: 有向距離 (0-26)
+
+        Returns:
+            (distance_type, direction) - 如 ("near", "栄")
+        """
+        type_map = self.DISTANCE_TYPE_MAP.get(rel_type)
+        if not type_map:
+            return (None, None)
+
+        for dist_type, config in type_map.items():
+            if distance in config["distances"]:
+                direction = config["direction_map"].get(distance)
+                return (dist_type, direction)
+
+        return (None, None)
+
+    def _get_distance_type_name(self, distance_type: str | None) -> str:
+        """將距離類型轉換為中文名稱"""
+        return {"near": "近距離", "mid": "中距離", "far": "遠距離"}.get(distance_type or "", "")
 
     def calculate_compatibility(
         self,
@@ -304,7 +366,10 @@ class SukuyodoService:
                 "advice": relation["advice"],
                 "tips": relation.get("tips", []),
                 "avoid": relation.get("avoid", []),
-                "good_for": relation.get("good_for", [])
+                "good_for": relation.get("good_for", []),
+                "distance_type": relation.get("distance_type"),
+                "distance_type_name": relation.get("distance_type_name", ""),
+                "direction": relation.get("direction")
             },
             "calculation": {
                 "distance": distance,

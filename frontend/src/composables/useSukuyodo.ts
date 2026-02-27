@@ -36,6 +36,9 @@ export interface Relation {
   tips: string[]
   avoid: string[]
   good_for: string[]
+  distance_type?: 'near' | 'mid' | 'far' | null
+  distance_type_name?: string
+  direction?: string | null
 }
 
 export interface Person {
