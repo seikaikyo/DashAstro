@@ -2,6 +2,8 @@
 
 融合日本密教占星 (宿曜道)、西方現代占星、日本傳統曆法的專業占星平台。
 
+AI-assisted development（運勢生成、塔羅解讀與部分程式碼由 Claude 協助開發）。
+
 ## 功能
 
 ### 宿曜道 (日本密教占星)
@@ -28,7 +30,7 @@
 
 | 層級 | 技術 |
 |------|------|
-| 前端 | Vue 3 + TypeScript + Shoelace + Vue Router + Pinia |
+| 前端 | Vue 3 + Vue Router (TypeScript + Vite 建構) |
 | 後端 | FastAPI + SQLModel + Neon PostgreSQL |
 | 星曆計算 | Skyfield (NASA JPL 星曆) |
 | 農曆轉換 | lunarcalendar |
@@ -45,6 +47,9 @@
 | `/api/astronomy/*` | 行星位置、相位、月相、逆行 |
 | `/api/compatibility/*` | 星座相性分析 |
 | `/api/lucky-days/*` | 吉日查詢 (日/月/區間) |
+| `/api/cron/*` | 排程任務 (週運生成、里程碑檢查) |
+| `/api/stats/*` | 使用統計 (摘要、每日、功能趨勢) |
+| `/health`, `/health/db` | 健康檢查 (服務 + 資料庫) |
 
 ## 開發
 
