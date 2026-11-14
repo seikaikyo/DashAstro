@@ -1,3 +1,4 @@
+import time
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from datetime import date, timedelta, datetime
@@ -125,6 +126,10 @@ def get_all_weekly_horoscopes(
 
 # === 月運勢 ===
 
+# AI 生成失敗的 (星座, 年, 月) 在這段時間內不再重試，直接回 404
+MONTHLY_FAILURE_TTL_SECONDS = 600
+_monthly_failures: dict[tuple[int, int, int], float] = {}
+
 @router.get("/monthly/{code}")
 async def get_monthly_horoscope(
     code: str,
@@ -138,6 +143,10 @@ async def get_monthly_horoscope(
         year = today.year
     if month is None:
         month = today.month
+
+    # 只接受今年前後各一年、1 到 12 月；超出範圍不查資料庫也不呼叫 AI
+    if not (today.year - 1 <= year <= today.year + 1) or not (1 <= month <= 12):
+        raise HTTPException(status_code=422, detail="年份只接受今年前後一年，月份 1 到 12")
 
     # 取得星座
     sign = session.exec(
@@ -157,7 +166,15 @@ async def get_monthly_horoscope(
 
     # 如果沒有資料，嘗試用 AI 生成
     if not horoscope:
-        horoscope = await generate_monthly_horoscope(sign, year, month, session)
+        key = (sign.id, year, month)
+        if time.monotonic() < _monthly_failures.get(key, 0):
+            horoscope = None
+        else:
+            horoscope = await generate_monthly_horoscope(sign, year, month, session)
+            if horoscope:
+                _monthly_failures.pop(key, None)
+            else:
+                _monthly_failures[key] = time.monotonic() + MONTHLY_FAILURE_TTL_SECONDS
 
     if not horoscope:
         raise HTTPException(

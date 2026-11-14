@@ -89,13 +89,13 @@ class CompatibilityContext(SQLModel):
     user_gender: Optional[str] = None
     partner_zodiac: str  # 對象星座代碼
     partner_gender: Optional[str] = None
-    partner_nickname: Optional[str] = None
+    partner_nickname: Optional[str] = Field(default=None, max_length=50)
 
 
 class DrawRequest(SQLModel):
     """抽牌請求"""
     spread_code: str = "single"
-    question: Optional[str] = None
+    question: Optional[str] = Field(default=None, max_length=200)
     session_id: Optional[str] = None
     compatibility: Optional[CompatibilityContext] = None
 

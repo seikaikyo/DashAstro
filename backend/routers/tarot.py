@@ -14,6 +14,7 @@ from models.tarot import (
 )
 from models.stats import Features
 from services.stats import stats_service
+from services.rate_limit import rate_limit
 
 settings = get_settings()
 router = APIRouter(prefix="/api/tarot", tags=["Tarot"])
@@ -63,7 +64,8 @@ def get_spread_by_code(code: str, session: Session = Depends(get_session)):
     return spread
 
 
-@router.post("/draw", response_model=TarotReadingRead)
+# 每個來源每小時：抽牌 30 次、AI 解讀 10 次、AI 測試 5 次
+@router.post("/draw", response_model=TarotReadingRead, dependencies=[Depends(rate_limit("tarot_draw", 30, 3600))])
 def draw_cards(
     request: DrawRequest,
     session: Session = Depends(get_session)
@@ -131,9 +133,11 @@ def get_ai_status():
     return claude_service.get_status()
 
 
-@router.get("/ai-test")
+@router.get("/ai-test", dependencies=[Depends(rate_limit("tarot_ai_test", 5, 3600))])
 def test_ai_service():
-    """測試 AI 服務"""
+    """測試 AI 服務（除錯用，只在 DEBUG=true 時開放，其他環境回 404）"""
+    if not settings.debug:
+        raise HTTPException(status_code=404, detail="Not Found")
     from services.claude_ai import claude_service
     from anthropic import Anthropic
 
@@ -157,7 +161,7 @@ def test_ai_service():
     return result
 
 
-@router.post("/interpret")
+@router.post("/interpret", dependencies=[Depends(rate_limit("tarot_interpret", 10, 3600))])
 async def interpret_reading(
     request: InterpretRequest,
     session: Session = Depends(get_session)
