@@ -2,7 +2,8 @@
 
 - **title**: 月運勢與塔羅 AI 端點加輸入範圍與次數限制
 - **type**: fix
-- **status**: in-progress
+- **status**: completed
+- **完成日期**: 2026-11-14
 - **建立日期**: 2026-11-14
 
 ## 背景
