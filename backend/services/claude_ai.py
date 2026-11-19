@@ -5,6 +5,7 @@ import logging
 from anthropic import Anthropic
 from typing import Optional
 from config import get_settings
+from services.claude_response import chat_reply_text, complete_text
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -109,7 +110,11 @@ class ClaudeAIService:
                 messages=[{"role": "user", "content": prompt}]
             )
             logger.info("Claude API 回應成功")
-            return response.content[0].text
+            # 解讀結果會存進快取，拒答若存進去這筆抽牌就再也拿不到解讀，改走失敗路徑讓使用者可以重試
+            if response.stop_reason == "refusal":
+                logger.warning("Claude refusal (tarot interpret)")
+                return None
+            return chat_reply_text(response, "tarot interpret")
         except Exception as e:
             logger.exception(f"Claude API 錯誤: {e}")
             return None
@@ -179,7 +184,8 @@ class ClaudeAIService:
             logger.info("Claude API 回應成功")
 
             import json
-            result_text = response.content[0].text.strip()
+            # 拒答或被 max_tokens 截斷時丟錯，不拿半截 JSON 去解析
+            result_text = complete_text(response).strip()
             logger.debug(f"原始回應: {result_text[:200]}...")
 
             # 移除可能的 markdown 標記

@@ -13,6 +13,7 @@ from models.horoscope import (
 )
 from models.stats import Features
 from services.stats import stats_service
+from services.claude_response import complete_text
 
 settings = get_settings()
 router = APIRouter(prefix="/api/horoscope", tags=["Horoscope"])
@@ -240,7 +241,8 @@ async def generate_monthly_horoscope(
         )
 
         import json
-        result_text = response.content[0].text.strip()
+        # 拒答或被 max_tokens 截斷時丟錯，不拿半截 JSON 去解析、也不寫入資料庫
+        result_text = complete_text(response).strip()
         # 移除可能的 markdown
         if result_text.startswith("```"):
             result_text = result_text.split("\n", 1)[1]

@@ -140,6 +140,7 @@ def test_ai_service():
         raise HTTPException(status_code=404, detail="Not Found")
     from services.claude_ai import claude_service
     from anthropic import Anthropic
+    from services.claude_response import chat_reply_text
 
     status = claude_service.get_status()
     result = {"status": status, "test_result": None, "error": None}
@@ -154,7 +155,7 @@ def test_ai_service():
             max_tokens=50,
             messages=[{"role": "user", "content": "說 OK"}]
         )
-        result["test_result"] = response.content[0].text
+        result["test_result"] = chat_reply_text(response, "tarot ai-test")
     except Exception as e:
         result["error"] = f"{type(e).__name__}: {str(e)}"
 
